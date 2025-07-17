@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/joenorton-comfyui-mcp-server-badge.png)](https://mseep.ai/app/joenorton-comfyui-mcp-server)
+
 # ComfyUI MCP Server
 
 A lightweight Python-based MCP (Model Context Protocol) server that interfaces with a local [ComfyUI](https://github.com/comfyanonymous/ComfyUI) instance to generate images programmatically via AI agent requests.
