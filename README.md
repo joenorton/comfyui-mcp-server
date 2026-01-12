@@ -455,6 +455,10 @@ If no metadata file exists, the server automatically infers parameter mappings f
 
 Feel free to submit issues or PRs to enhance flexibility (e.g., dynamic node mapping, progress streaming).
 
+## Author
+
+Joe Norton (github.com/joenorton)
+
 ## License
 
 Apache License
