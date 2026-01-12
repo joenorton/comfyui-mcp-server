@@ -82,9 +82,9 @@
   },
   "74:52": {
     "inputs": {
-      "seed": 1089723283857463,
-      "steps": 50,
-      "cfg": 5,
+      "seed": "PARAM_INT_SEED",
+      "steps": "PARAM_INT_STEPS",
+      "cfg": "PARAM_FLOAT_CFG",
       "sampler_name": "euler",
       "scheduler": "simple",
       "denoise": 1,
@@ -112,7 +112,7 @@
   },
   "74:17": {
     "inputs": {
-      "seconds": 60,
+      "seconds": "PARAM_INT_SECONDS",
       "batch_size": 1
     },
     "class_type": "EmptyAceStepLatentAudio",
@@ -133,7 +133,7 @@
     "inputs": {
       "tags": "PARAM_TAGS",
       "lyrics": "PARAM_LYRICS",
-      "lyrics_strength": 0.9900000000000002,
+      "lyrics_strength": "PARAM_FLOAT_LYRICS_STRENGTH",
       "clip": [
         "74:40",
         1

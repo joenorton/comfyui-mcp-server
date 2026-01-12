@@ -38,6 +38,8 @@ PLACEHOLDER_DESCRIPTIONS = {
     "negative_prompt": "Negative prompt to avoid certain elements. Default: 'text, watermark'.",
     "tags": "Comma-separated descriptive tags for the audio model.",
     "lyrics": "Full lyric text that should drive the audio generation.",
+    "seconds": "Audio duration in seconds. Default: 60 (1 minute).",
+    "lyrics_strength": "How strongly lyrics influence audio generation (0.0-1.0). Default: 0.99.",
 }
 DEFAULT_OUTPUT_KEYS = ("images", "image", "gifs", "gif")
 AUDIO_OUTPUT_KEYS = ("audio", "audios", "sound", "files")
@@ -115,18 +117,32 @@ class WorkflowManager:
     def render_workflow(self, definition: WorkflowToolDefinition, provided_params: Dict[str, Any]):
         workflow = copy.deepcopy(definition.template)
         
-        # Default values for optional parameters (matching original hardcoded values)
-        defaults = {
-            "width": 512,
-            "height": 512,
-            "steps": 20,
-            "cfg": 8.0,
-            "sampler_name": "euler",
-            "scheduler": "normal",
-            "denoise": 1.0,
-            "model": "v1-5-pruned-emaonly.ckpt",
-            "negative_prompt": "text, watermark",
-        }
+        # Workflow-specific default values
+        if definition.workflow_id == "generate_image":
+            defaults = {
+                "width": 512,
+                "height": 512,
+                "steps": 20,
+                "cfg": 8.0,
+                "sampler_name": "euler",
+                "scheduler": "normal",
+                "denoise": 1.0,
+                "model": "v1-5-pruned-emaonly.ckpt",
+                "negative_prompt": "text, watermark",
+            }
+        elif definition.workflow_id == "generate_song":
+            defaults = {
+                "steps": 50,
+                "cfg": 5.0,
+                "sampler_name": "euler",
+                "scheduler": "simple",
+                "denoise": 1.0,
+                "seconds": 60,
+                "lyrics_strength": 0.99,
+                "model": "ace_step_v1_3.5b.safetensors",
+            }
+        else:
+            defaults = {}
         
         for param in definition.parameters.values():
             if param.required and param.name not in provided_params:
@@ -172,9 +188,11 @@ class WorkflowManager:
                 if not parameter:
                     # Make seed and other optional parameters non-required
                     # Only 'prompt' should be required for generate_image
+                    # Only 'tags' and 'lyrics' should be required for generate_song
                     optional_params = {
                         "seed", "width", "height", "model", "steps", "cfg",
-                        "sampler_name", "scheduler", "denoise", "negative_prompt"
+                        "sampler_name", "scheduler", "denoise", "negative_prompt",
+                        "seconds", "lyrics_strength"  # Audio-specific optional params
                     }
                     is_required = param_name not in optional_params
                     parameter = WorkflowParameter(

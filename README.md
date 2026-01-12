@@ -127,8 +127,15 @@ This project enables AI agents to send generation requests to ComfyUI using the 
 
 ### Bundled example workflows
 
-- `generate_image.json`: Minimal Stable Diffusion 1.5 image sampler that exposes `prompt`, `width`, `height`, and `model` parameters. Produces PNG URLs.
-- `generate_song.json`: AceStep audio text-to-song workflow that exposes `tags` and `lyrics` parameters and returns an MP3 URL.
+- `generate_image.json`: Stable Diffusion image generation workflow with flexible parameters:
+  - **Required**: `prompt` (text description)
+  - **Optional**: `seed`, `width`, `height`, `model`, `steps`, `cfg`, `sampler_name`, `scheduler`, `denoise`, `negative_prompt`
+  - Produces PNG/JPEG URLs
+  
+- `generate_song.json`: AceStep audio text-to-song workflow with flexible parameters:
+  - **Required**: `tags` (comma-separated tags), `lyrics` (full lyric text)
+  - **Optional**: `seed`, `steps`, `cfg`, `seconds`, `lyrics_strength`
+  - Produces MP3 URLs
 
 Add additional API-format workflows following the placeholder convention below to expose new MCP tools automatically.
 
@@ -139,7 +146,81 @@ Add additional API-format workflows following the placeholder convention below t
 - Example: `"tags": "PARAM_TAGS"` creates a `tags: str` argument, while `"steps": "PARAM_INT_STEPS"` becomes an `int` argument.
 - The tool name defaults to the workflow filename (normalized to snake_case). Rename the JSON file if you want a friendlier MCP tool name.
 - Outputs are inferred heuristically: workflows that contain audio nodes return audio URLs, otherwise image URLs are returned.
+- **Default values**: Optional parameters automatically use sensible defaults when not provided. Defaults are workflow-specific (e.g., audio workflows use different step/cfg defaults than image workflows).
 - Add more workflows and they will show up without extra Python changes, provided they use the placeholder convention above.
+
+### Available Parameters
+
+#### generate_image Tool
+
+**Required Parameters:**
+- `prompt` (string): Text description of the image to generate
+
+**Optional Parameters (with defaults):**
+- `seed` (int): Random seed for generation. Auto-generated if not provided.
+- `width` (int): Image width in pixels. Default: 512
+- `height` (int): Image height in pixels. Default: 512
+- `model` (string): Checkpoint model name. Default: "v1-5-pruned-emaonly.ckpt"
+- `steps` (int): Number of sampling steps. Default: 20
+- `cfg` (float): Classifier-free guidance scale. Default: 8.0
+- `sampler_name` (string): Sampling method. Default: "euler"
+- `scheduler` (string): Scheduler type. Default: "normal"
+- `denoise` (float): Denoising strength (0.0-1.0). Default: 1.0
+- `negative_prompt` (string): Negative prompt. Default: "text, watermark"
+
+**Example:**
+```python
+# Minimal call (uses all defaults)
+generate_image(prompt="a beautiful sunset")
+
+# Custom parameters
+generate_image(
+    prompt="a cyberpunk cityscape",
+    model="sd_xl_base_1.0.safetensors",
+    width=1024,
+    height=768,
+    steps=30,
+    cfg=7.5
+)
+```
+
+#### generate_song Tool
+
+**Required Parameters:**
+- `tags` (string): Comma-separated descriptive tags for the audio style
+- `lyrics` (string): Full lyric text that drives the audio generation
+
+**Optional Parameters (with defaults):**
+- `seed` (int): Random seed for generation. Auto-generated if not provided.
+- `steps` (int): Number of sampling steps. Default: 50
+- `cfg` (float): Classifier-free guidance scale. Default: 5.0
+- `seconds` (int): Audio duration in seconds. Default: 60
+- `lyrics_strength` (float): How strongly lyrics influence generation (0.0-1.0). Default: 0.99
+
+**Example:**
+```python
+# Minimal call (uses all defaults - 60 second song)
+generate_song(
+    tags="electronic, ambient",
+    lyrics="In the quiet of the night..."
+)
+
+# Custom parameters - 30 second clip with higher quality
+generate_song(
+    tags="rock, energetic",
+    lyrics="Let's rock and roll tonight...",
+    seconds=30,
+    steps=60,
+    cfg=6.0,
+    lyrics_strength=0.95
+)
+```
+
+#### list_available_models Tool
+
+- Returns a list of all available checkpoint models in ComfyUI
+- Helps AI agents choose appropriate models for different tasks
+- Returns: `{"models": [...], "count": N, "default": "..."}`
 
 ## Project Structure
 
