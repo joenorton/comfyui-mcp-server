@@ -899,7 +899,7 @@ All generation tools (`generate_image`, `generate_song`, `regenerate`, `run_work
 
 **Key Points:**
 - `asset_id` is the primary identifier for follow-up operations
-- `filename`, `subfolder`, and `folder_type` form a stable identity that survives hostname/port changes
+- `filename`, `subfolder`, and `folder_type` form a stable identity that is stable across URL/base changes
 - `prompt_id` enables job status polling via `get_job()`
 - Asset URLs are computed from stable identity, making the system robust to configuration changes
 

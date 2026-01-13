@@ -62,12 +62,12 @@ The server bridges MCP (Model Context Protocol) and ComfyUI, providing a standar
 
 **Stable Identity Design:**
 Assets are identified by `(filename, subfolder, folder_type)` instead of URLs, making the system robust to:
-- Hostname changes (localhost → 127.0.0.1)
-- Port changes
-- ComfyUI restarts
-- Different base URLs
+- Hostname/port/base-url changes
+- Resilient to ComfyUI restarts for already-known output identities
 
 URLs are computed on-the-fly from the stable identity when needed.
+
+**Note:** Stable identity prevents URL/base changes from breaking computed URLs, but does not imply persistence of the asset registry across MCP server restarts.
 
 ### ComfyUIClient
 
@@ -400,7 +400,7 @@ Uses deep copy of stored workflow, applies overrides via `_update_workflow_param
 
 **Solution:** Use `(filename, subfolder, type)` tuple as stable identity:
 - Works across different ComfyUI instances (localhost, 127.0.0.1, different ports)
-- Survives ComfyUI restarts
+- Resilient to ComfyUI restarts for already-known output identities (URL computation)
 - URLs computed on-the-fly from base_url
 - O(1) lookups via dual-index structure
 

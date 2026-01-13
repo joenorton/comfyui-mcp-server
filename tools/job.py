@@ -267,7 +267,7 @@ def register_job_tools(
         try:
             asset = asset_registry.get_asset(asset_id)
             if not asset:
-                return {"error": f"Asset {asset_id} not found or expired"}
+                return {"error": f"Asset {asset_id} not found (registry is in-memory and resets on restart). Generate a new asset to regenerate."}
             
             asset_url = asset.asset_url or asset.get_asset_url(asset_registry.comfyui_base_url)
             

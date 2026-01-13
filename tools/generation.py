@@ -326,7 +326,7 @@ def register_regenerate_tool(
             # Step 1: Retrieve original asset metadata
             asset = asset_registry.get_asset(asset_id)
             if not asset:
-                return {"error": f"Asset {asset_id} not found or expired"}
+                return {"error": f"Asset {asset_id} not found (registry is in-memory and resets on restart). Generate a new asset to regenerate."}
             
             # Extract the stored workflow
             original_workflow = asset.submitted_workflow

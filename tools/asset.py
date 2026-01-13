@@ -51,7 +51,7 @@ def register_asset_tools(
         # Validate asset_id exists in registry (security: only our assets)
         asset_record = asset_registry.get_asset(asset_id)
         if not asset_record:
-            return {"error": "Asset not found or expired"}
+            return {"error": f"Asset {asset_id} not found (registry is in-memory and resets on restart). Generate a new asset to regenerate."}
         
         # Get asset URL (computed from stable identity)
         asset_url = asset_record.asset_url or asset_record.get_asset_url(asset_registry.comfyui_base_url)

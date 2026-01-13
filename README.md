@@ -266,6 +266,10 @@ comfyui-mcp-server/
 - `regenerate` uses stored workflow data to recreate assets with parameter overrides
 - Session isolation: `list_assets` can filter by session for clean AI agent context
 
+## Known Limitations (v1.0)
+
+- **Ephemeral asset registry**: `asset_id` references are only valid while the MCP server is running (and until TTL expiry). After restart, previously-issued `asset_id`s can't be resolved.
+
 ## Contributing
 
 Issues and pull requests are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines.
