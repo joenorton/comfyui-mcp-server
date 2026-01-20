@@ -10,6 +10,7 @@ Complete technical reference for ComfyUI MCP Server tools, parameters, and behav
 - [Asset Management Tools](#asset-management-tools)
 - [Configuration Tools](#configuration-tools)
 - [Workflow Tools](#workflow-tools)
+- [Publish Tools](#publish-tools)
 - [Parameters](#parameters)
 - [Return Values](#return-values)
 - [Error Handling](#error-handling)
@@ -76,22 +77,16 @@ generate_image(
 ```
 
 **Examples:**
-```python
-# Minimal call
-result = generate_image(prompt="a cat")
 
-# Full parameters
-result = generate_image(
-    prompt="cyberpunk cityscape",
-    width=1024,
-    height=768,
-    model="sd_xl_base_1.0.safetensors",
-    steps=30,
-    cfg=7.5,
-    sampler_name="dpmpp_2m",
-    negative_prompt="blurry, low quality"
-)
-```
+**User:** "Generate an image of a cat"
+
+**Agent:** *Calls `generate_image(prompt="a cat")` → returns asset_id*
+
+---
+
+**User:** "Create a cyberpunk cityscape, 1024x768, high quality, 30 steps, using the SD XL model"
+
+**Agent:** *Calls `generate_image(prompt="cyberpunk cityscape", width=1024, height=768, model="sd_xl_base_1.0.safetensors", steps=30, cfg=7.5, sampler_name="dpmpp_2m", negative_prompt="blurry, low quality")` → returns asset_id*
 
 ### generate_song
 
@@ -199,14 +194,18 @@ view_image(
 ```
 
 **Examples:**
-```python
-# Generate and view
-result = generate_image(prompt="a cat")
-view_image(asset_id=result["asset_id"])
 
-# Get metadata only
-metadata = view_image(asset_id=result["asset_id"], mode="metadata")
-```
+**User:** "Generate an image of a cat and show it to me"
+
+**Agent:** 
+- *Calls `generate_image(prompt="a cat")` → gets asset_id*
+- *Calls `view_image(asset_id="...")` → displays thumbnail inline*
+
+---
+
+**User:** "What are the dimensions of that last image I generated?"
+
+**Agent:** *Calls `view_image(asset_id="...", mode="metadata")` → returns width, height, size, etc.*
 
 ## Job Management Tools
 
@@ -245,11 +244,16 @@ get_queue_status() -> dict
 - Determine if a job is still queued vs running
 
 **Examples:**
-```python
-queue = get_queue_status()
-if queue["pending_count"] > 5:
-    print("Queue is backed up, consider waiting")
-```
+
+**User:** "Is ComfyUI busy right now? How many jobs are queued?"
+
+**Agent:** *Calls `get_queue_status()` → reports queue depth and running jobs*
+
+---
+
+**User:** "Check if there are any jobs waiting before I submit a new one"
+
+**Agent:** *Calls `get_queue_status()` → checks pending_count, informs user if queue is backed up*
 
 ### get_job
 
@@ -278,17 +282,19 @@ get_job(prompt_id: str) -> dict
 - `"error"`: Job failed (check ComfyUI logs)
 
 **Examples:**
-```python
-result = generate_image(prompt="complex scene", steps=50)
-job = get_job(prompt_id=result["prompt_id"])
 
-while job["status"] in ["pending", "running"]:
-    time.sleep(1)
-    job = get_job(prompt_id=result["prompt_id"])
+**User:** "Generate a complex scene with 50 steps, and let me know when it's done"
 
-if job["status"] == "completed":
-    view_image(asset_id=result["asset_id"])
-```
+**Agent:**
+- *Calls `generate_image(prompt="complex scene", steps=50)` → gets prompt_id*
+- *Periodically calls `get_job(prompt_id="...")` to check status*
+- *When status is "completed", informs user and optionally calls `view_image()`*
+
+---
+
+**User:** "Is that image generation I started earlier finished yet?"
+
+**Agent:** *Calls `get_job(prompt_id="...")` → reports current status (pending/running/completed/error)*
 
 ### cancel_job
 
@@ -318,11 +324,13 @@ cancel_job(prompt_id: str) -> dict
 ```
 
 **Examples:**
-```python
-result = generate_image(prompt="long task")
-# ... decide to cancel ...
-cancel_job(prompt_id=result["prompt_id"])
-```
+
+**User:** "I started a long image generation task earlier, but I want to cancel it now"
+
+**Agent:** 
+- *Calls `get_queue_status()` to find running jobs*
+- *Calls `cancel_job(prompt_id="...")` to cancel the job*
+- *Confirms cancellation to user*
 
 ## Asset Management Tools
 
@@ -370,13 +378,16 @@ list_assets(
 - Filter by session for conversation-scoped asset isolation
 
 **Examples:**
-```python
-# List recent images
-images = list_assets(workflow_id="generate_image", limit=5)
 
-# List assets from current conversation
-session_assets = list_assets(session_id="current-session-id")
-```
+**User:** "Show me the last 5 images I generated"
+
+**Agent:** *Calls `list_assets(workflow_id="generate_image", limit=5)` → displays list of recent images*
+
+---
+
+**User:** "What assets have we created in this conversation?"
+
+**Agent:** *Calls `list_assets(session_id="current-session-id")` → lists assets from current session*
 
 ### get_asset_metadata
 
@@ -434,11 +445,16 @@ get_asset_metadata(asset_id: str) -> dict
 - Debug generation issues with full provenance
 
 **Examples:**
-```python
-metadata = get_asset_metadata(asset_id="abc123")
-print(f"Generated with: {metadata['workflow_id']}")
-print(f"Parameters: {metadata['submitted_workflow']}")
-```
+
+**User:** "What parameters were used to generate that last image?"
+
+**Agent:** *Calls `get_asset_metadata(asset_id="...")` → retrieves and reports workflow parameters, dimensions, etc.*
+
+---
+
+**User:** "I want to regenerate that image but with different settings - what were the original settings?"
+
+**Agent:** *Calls `get_asset_metadata(asset_id="...")` → shows submitted_workflow data for regeneration*
 
 ### regenerate
 
@@ -475,28 +491,26 @@ Same schema as generation tools (new asset with new `asset_id`)
 ```
 
 **Examples:**
-```python
-# Generate initial image
-result = generate_image(prompt="a sunset", steps=20)
 
-# Regenerate with higher quality
-regenerate_result = regenerate(
-    asset_id=result["asset_id"],
-    param_overrides={"steps": 30, "cfg": 10.0}
-)
+**User:** "Generate a sunset image with 20 steps"
 
-# Regenerate with different prompt
-regenerate_result = regenerate(
-    asset_id=result["asset_id"],
-    param_overrides={"prompt": "a beautiful sunset, oil painting style"}
-)
+**Agent:** *Calls `generate_image(prompt="a sunset", steps=20)` → gets asset_id*
 
-# Regenerate with new seed
-regenerate_result = regenerate(
-    asset_id=result["asset_id"],
-    seed=-1
-)
-```
+**User:** "Now regenerate that same image but with higher quality - 30 steps and cfg 10"
+
+**Agent:** *Calls `regenerate(asset_id="...", param_overrides={"steps": 30, "cfg": 10.0})` → creates new version*
+
+---
+
+**User:** "Regenerate that image but change the prompt to 'a beautiful sunset, oil painting style'"
+
+**Agent:** *Calls `regenerate(asset_id="...", param_overrides={"prompt": "a beautiful sunset, oil painting style"})` → creates variation*
+
+---
+
+**User:** "Generate a new variation of that image with a different random seed"
+
+**Agent:** *Calls `regenerate(asset_id="...", seed=-1)` → creates new variation with different seed*
 
 ## Configuration Tools
 
@@ -521,6 +535,18 @@ list_models() -> dict
   "default": "v1-5-pruned-emaonly.ckpt"
 }
 ```
+
+**Examples:**
+
+**User:** "What models are available in ComfyUI?"
+
+**Agent:** *Calls `list_models()` → reports available checkpoint models*
+
+---
+
+**User:** "I want to use a different model - show me what's available"
+
+**Agent:** *Calls `list_models()` → lists models, user selects one, agent uses it in generation*
 
 ### get_defaults
 
@@ -562,6 +588,18 @@ get_defaults() -> dict
   }
 }
 ```
+
+**Examples:**
+
+**User:** "What are the current default settings for image generation?"
+
+**Agent:** *Calls `get_defaults()` → reports current defaults (width, height, model, steps, etc.)*
+
+---
+
+**User:** "Show me all the default settings"
+
+**Agent:** *Calls `get_defaults()` → shows defaults for image, audio, and video generation*
 
 ### set_defaults
 
@@ -605,19 +643,16 @@ set_defaults(
 ```
 
 **Examples:**
-```python
-# Set ephemeral defaults
-set_defaults(
-    image={"width": 1024, "height": 1024},
-    audio={"seconds": 30}
-)
 
-# Persist to config file
-set_defaults(
-    image={"model": "sd_xl_base_1.0.safetensors"},
-    persist=True
-)
-```
+**User:** "Set the default image size to 1024x1024 for this session"
+
+**Agent:** *Calls `set_defaults(image={"width": 1024, "height": 1024})` → sets ephemeral defaults*
+
+---
+
+**User:** "Save the SD XL model as the default image model permanently"
+
+**Agent:** *Calls `set_defaults(image={"model": "sd_xl_base_1.0.safetensors"}, persist=True)` → saves to config file*
 
 ### Default Model Validation
 
@@ -691,6 +726,18 @@ list_workflows() -> dict
 }
 ```
 
+**Examples:**
+
+**User:** "What workflows are available?"
+
+**Agent:** *Calls `list_workflows()` → lists all available workflows with descriptions and parameters*
+
+---
+
+**User:** "Show me what custom workflows I can run"
+
+**Agent:** *Calls `list_workflows()` → displays workflow catalog with available inputs*
+
 ### run_workflow
 
 Run any saved ComfyUI workflow with constrained parameter overrides.
@@ -729,17 +776,16 @@ run_workflow(
 ```
 
 **Examples:**
-```python
-# Run workflow with overrides
-run_workflow(
-    workflow_id="generate_image",
-    overrides={
-        "prompt": "a cat",
-        "width": 1024,
-        "model": "sd_xl_base_1.0.safetensors"
-    }
-)
-```
+
+**User:** "Run the generate_image workflow with a custom prompt and 30 steps"
+
+**Agent:** *Calls `run_workflow(workflow_id="generate_image", overrides={"prompt": "...", "steps": 30})` → executes workflow*
+
+---
+
+**User:** "Use the generate_image workflow to create a 1024x1024 image of a cat with the SD XL model"
+
+**Agent:** *Calls `run_workflow(workflow_id="generate_image", overrides={"prompt": "a cat", "width": 1024, "height": 1024, "model": "sd_xl_base_1.0.safetensors"})` → executes workflow*
 
 ### Advanced: Workflow Metadata
 
@@ -782,6 +828,293 @@ workflows/
 - Metadata defaults override global defaults for this workflow only
 - Constraints validate parameter values when `run_workflow` is called
 - If metadata file is missing, workflow still works with global defaults
+
+## Publish Tools
+
+Tools for safely publishing ComfyUI-generated assets to web project directories with automatic compression and manifest management.
+
+**Key Concepts:**
+- **Session-scoped assets**: `asset_id`s are valid only for the current server session; restart invalidates them
+- **Zero-config in common cases**: Publish directory auto-detected (`public/gen`, `static/gen`, or `assets/gen`)
+- **Two modes**: Demo mode (explicit filename) and Library mode (auto-generated filename with manifest)
+- **Deterministic compression**: Images compressed using a fixed quality/downscale ladder to meet size limits
+
+### get_publish_info
+
+Get publish configuration and status information. Use this to debug configuration issues and verify setup before publishing.
+
+**Signature:**
+```python
+get_publish_info() -> dict
+```
+
+**Returns:**
+```json
+{
+  "project_root": {
+    "path": "E:\\dev\\comfyui-mcp-server",
+    "detection_method": "cwd"
+  },
+  "publish_root": {
+    "path": "E:\\dev\\comfyui-mcp-server\\public\\gen",
+    "exists": true,
+    "writable": true
+  },
+  "comfyui_output_root": {
+    "path": "E:\\comfyui-desktop\\output",
+    "exists": true,
+    "detection_method": "auto-detected",
+    "configured": false
+  },
+  "comfyui_tried_paths": [
+    {
+      "path": "E:\\dev\\comfyui-mcp-server\\comfyui-desktop\\output",
+      "exists": false,
+      "is_valid": false,
+      "source": "auto_detection"
+    },
+    {
+      "path": "E:\\comfyui-desktop\\output",
+      "exists": true,
+      "is_valid": true,
+      "source": "auto_detection"
+    }
+  ],
+  "config_file": "C:\\Users\\user\\AppData\\Roaming\\comfyui-mcp-server\\publish_config.json",
+  "status": "ready",
+  "message": "Ready to publish",
+  "warnings": []
+}
+```
+
+**Field Descriptions:**
+- `project_root`: Detected project root directory and detection method (`"cwd"` or `"auto-detected"`)
+- `publish_root`: Publish directory path, existence, and writability
+- `comfyui_output_root`: ComfyUI output root path, existence, detection method, and whether it's configured
+- `comfyui_tried_paths`: List of paths checked during auto-detection with validation results
+- `config_file`: Path to persistent configuration file
+- `status`: `"ready"` | `"needs_comfyui_root"` | `"error"`
+- `message`: Human-readable status message
+- `warnings`: List of warnings (e.g., fallback detection used)
+
+**Examples:**
+
+**User:** "Check if the publish system is ready to use"
+
+**Agent:** *Calls `get_publish_info()` → reports status, project root, publish directory, ComfyUI output root*
+
+---
+
+**User:** "I'm getting an error about ComfyUI output root not being found"
+
+**Agent:** 
+- *Calls `get_publish_info()` → sees status "needs_comfyui_root"*
+- *Suggests using `set_comfyui_output_root()` with the path*
+- *User provides path: "E:/comfyui-desktop/output"*
+- *Agent calls `set_comfyui_output_root("E:/comfyui-desktop/output")` → configures and persists*
+
+### set_comfyui_output_root
+
+Set ComfyUI output root directory in persistent configuration. Recommended for Comfy Desktop and nonstandard installs.
+
+**Signature:**
+```python
+set_comfyui_output_root(path: str) -> dict
+```
+
+**Required Parameters:**
+- `path` (str): Absolute or relative path to ComfyUI output directory (e.g., `"E:/comfyui-desktop/output"` or `"/opt/ComfyUI/output"`)
+
+**Returns (Success):**
+```json
+{
+  "success": true,
+  "path": "E:\\comfyui-desktop\\output",
+  "config_file": "C:\\Users\\user\\AppData\\Roaming\\comfyui-mcp-server\\publish_config.json",
+  "message": "ComfyUI output root configured: E:\\comfyui-desktop\\output"
+}
+```
+
+**Returns (Error):**
+```json
+{
+  "error": "COMFYUI_OUTPUT_ROOT_PATH_NOT_FOUND",
+  "message": "Path does not exist: E:/nonexistent/output",
+  "path": "E:/nonexistent/output"
+}
+```
+
+**Error Codes:**
+- `COMFYUI_OUTPUT_ROOT_PATH_NOT_FOUND`: Path does not exist
+- `COMFYUI_OUTPUT_ROOT_NOT_DIRECTORY`: Path is not a directory
+- `COMFYUI_OUTPUT_ROOT_INVALID`: Path doesn't appear to be a ComfyUI output directory
+- `CONFIG_SAVE_FAILED`: Failed to save configuration file
+- `INVALID_PATH`: Invalid path format
+
+**Configuration Storage:**
+- **Windows**: `%APPDATA%/comfyui-mcp-server/publish_config.json`
+- **Mac**: `~/Library/Application Support/comfyui-mcp-server/publish_config.json`
+- **Linux**: `~/.config/comfyui-mcp-server/publish_config.json`
+
+**Examples:**
+
+**User:** "Set the ComfyUI output directory to E:/comfyui-desktop/output"
+
+**Agent:** *Calls `set_comfyui_output_root("E:/comfyui-desktop/output")` → validates path, saves to config, confirms success*
+
+---
+
+**User:** "Configure the output directory" *(if path is invalid)*
+
+**Agent:** 
+- *Calls `set_comfyui_output_root("...")` → receives error*
+- *Reports error to user: "Path does not exist" or "Path doesn't appear to be a ComfyUI output directory"*
+- *Suggests checking the path or using `get_publish_info()` to see tried paths*
+
+### publish_asset
+
+Publish a ComfyUI-generated asset to the project's web directory with automatic compression.
+
+**Signature:**
+```python
+publish_asset(
+    asset_id: str,
+    target_filename: str | None = None,
+    manifest_key: str | None = None,
+    format: str = "webp",
+    max_bytes: int = 600_000,
+    overwrite: bool = True
+) -> dict
+```
+
+**Required Parameters:**
+- `asset_id` (str): Asset ID from generation tools (session-scoped, dies on server restart)
+
+**Optional Parameters:**
+- `target_filename` (str, optional): Target filename (e.g., `"hero.webp"`). If omitted, auto-generated (library mode). Must match regex: `^[a-z0-9][a-z0-9._-]{0,63}\.(webp|png|jpg|jpeg)$`
+- `manifest_key` (str, optional): Manifest key (required if `target_filename` omitted). Must match regex: `^[a-z0-9][a-z0-9._-]{0,63}$`
+- `format` (str): Target image format (default: `"webp"`). Ignored if `target_filename` has extension.
+- `max_bytes` (int): Maximum file size in bytes (default: `600000`). Images are compressed if needed.
+- `overwrite` (bool): Whether to overwrite existing file (default: `True`)
+
+**Two Modes:**
+
+**Demo Mode** (explicit filename):
+- User provides `target_filename` (e.g., `"hero.webp"`)
+- Agent calls: `publish_asset(asset_id="...", target_filename="hero.webp")`
+- Manifest not updated unless `manifest_key` also provided
+
+**Library Mode** (auto-generated with manifest):
+- User provides `manifest_key`, omits `target_filename`
+- Agent calls: `publish_asset(asset_id="...", manifest_key="hero-image")`
+- Filename auto-generated as `asset_<shortid>.webp`
+- Manifest automatically updated: `{"hero-image": "asset_0b3eacbc.webp"}`
+
+**Returns (Success):**
+```json
+{
+  "dest_url": "/gen/hero.webp",
+  "dest_path": "E:\\dev\\project\\public\\gen\\hero.webp",
+  "bytes_size": 37478,
+  "mime_type": "image/webp",
+  "width": 512,
+  "height": 512,
+  "compression_info": {
+    "compressed": true,
+    "original_size": 457374,
+    "original_dimensions": [512, 512],
+    "quality": 85,
+    "final_dimensions": [512, 512],
+    "downscaled": false,
+    "final_size": 37478
+  }
+}
+```
+
+**Returns (Error):**
+```json
+{
+  "error": "Asset 0b3eacbc-25b0-497c-9d63-6d66d9e67387 not found or expired. Assets are session-scoped and die on server restart. Generate a new asset in the current session.",
+  "error_code": "ASSET_NOT_FOUND_OR_EXPIRED"
+}
+```
+
+**Error Codes:**
+- `ASSET_NOT_FOUND_OR_EXPIRED`: Asset not in current session (session-scoped)
+- `INVALID_TARGET_FILENAME`: Filename doesn't match regex pattern
+- `INVALID_MANIFEST_KEY`: Manifest key doesn't match regex pattern
+- `MANIFEST_KEY_REQUIRED`: `manifest_key` required when `target_filename` omitted (library mode)
+- `SOURCE_PATH_OUTSIDE_ROOT`: Source file outside ComfyUI output root
+- `PATH_TRAVERSAL_DETECTED`: Path traversal attempt detected
+- `COMFYUI_OUTPUT_ROOT_NOT_FOUND`: ComfyUI output root not configured
+- `PUBLISH_ROOT_NOT_WRITABLE`: Publish directory not writable
+- `PUBLISH_FAILED`: Copy/compression operation failed
+- `VALIDATION_ERROR`: General validation error
+
+**Compression Details:**
+
+Images are compressed using a deterministic compression ladder:
+
+1. **Quality progression**: [85, 75, 65, 55, 45, 35]
+2. **Downscale factors**: [1.0, 0.9, 0.75, 0.6, 0.5] (if needed)
+3. **Format conversion**: PNG/JPEG → WebP (if `format="webp"`)
+4. **Size limit**: Enforced via `max_bytes` (default: 600KB)
+
+The compression ladder tries quality levels first, then downscaling if needed, until the size limit is met. If compression cannot meet the limit, an error is returned.
+
+**Manifest Updates:**
+
+The manifest (`<publish_root>/manifest.json`) is updated only when `manifest_key` is provided:
+
+```json
+{
+  "hero-image": "asset_0b3eacbc.webp",
+  "logo": "logo.png"
+}
+```
+
+Manifest uses simple `key → filename` mapping (no arrays in v1). Updates are atomic (process-level locking).
+
+**Examples:**
+
+**Demo Mode:**
+
+**User:** "Generate a sunset image and publish it as hero.webp, keep it under 500KB"
+
+**Agent:**
+- *Calls `generate_image(prompt="a sunset")` → gets asset_id*
+- *Calls `publish_asset(asset_id="...", target_filename="hero.webp", format="webp", max_bytes=500_000)` → publishes with compression*
+- *Reports: "Published to /gen/hero.webp (37478 bytes)"*
+
+---
+
+**Library Mode:**
+
+**User:** "Generate a sunset image and add it to the manifest as 'hero-image'"
+
+**Agent:**
+- *Calls `generate_image(prompt="a sunset")` → gets asset_id*
+- *Calls `publish_asset(asset_id="...", manifest_key="hero-image", format="webp")` → auto-generates filename, updates manifest*
+- *Reports: "Published to /gen/asset_0b3eacbc.webp, added to manifest as 'hero-image'*
+
+**Typical Workflow:**
+
+**User:** "I want to publish an image to my website"
+
+**Agent:**
+- *Calls `get_publish_info()` to check configuration*
+- *If status is not "ready", suggests using `set_comfyui_output_root()` if ComfyUI output root is missing*
+- *User provides path or agent proceeds if ready*
+- *Calls `generate_image()` or other generation tool*
+- *Calls `publish_asset()` with user's requested filename or manifest key*
+- *Confirms publication and provides URL*
+
+**Safety Guarantees:**
+- Only assets from current session can be published (asset_id must exist in registry)
+- Source path must be within ComfyUI output root (validated with real path resolution)
+- Target filename validated by strict regex (prevents path traversal)
+- All paths are canonicalized to prevent symlink/traversal attacks
+- Images automatically compressed to meet size limits
 
 ## Parameters
 
@@ -991,6 +1324,24 @@ Or when using `set_defaults`:
 }
 ```
 
+**Publish Errors:**
+
+All publish errors include both human-readable messages and machine-readable error codes:
+
+```json
+{
+  "error": "Asset 0b3eacbc-25b0-497c-9d63-6d66d9e67387 not found or expired. Assets are session-scoped and die on server restart. Generate a new asset in the current session.",
+  "error_code": "ASSET_NOT_FOUND_OR_EXPIRED"
+}
+```
+
+**Common Publish Error Codes:**
+- `ASSET_NOT_FOUND_OR_EXPIRED`: Asset not in current session
+- `INVALID_TARGET_FILENAME`: Filename doesn't match validation regex
+- `MANIFEST_KEY_REQUIRED`: `manifest_key` required when `target_filename` omitted
+- `COMFYUI_OUTPUT_ROOT_NOT_FOUND`: ComfyUI output root not configured
+- `PUBLISH_FAILED`: Copy/compression operation failed
+
 ## Limits and Constraints
 
 ### Image Viewing
@@ -1017,3 +1368,12 @@ Or when using `set_defaults`:
 - **Polling interval**: 1 second
 - **Maximum attempts**: 30 (configurable)
 - **Timeout**: 30 seconds per request
+
+### Publish Constraints
+
+- **Session-scoped assets**: `asset_id`s are valid only for the current server session; restart invalidates them
+- **Filename validation**: Target filenames must match regex `^[a-z0-9][a-z0-9._-]{0,63}\.(webp|png|jpg|jpeg)$`
+- **Manifest key validation**: Manifest keys must match regex `^[a-z0-9][a-z0-9._-]{0,63}$`
+- **Compression limits**: Images compressed to meet `max_bytes` limit (default: 600KB); fails with error if limit cannot be met
+- **Path safety**: All paths canonicalized; source must be within ComfyUI output root; target must be within publish root
+- **Project root detection**: Server should be started from repository root (cwd) for best results

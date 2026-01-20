@@ -183,6 +183,42 @@ No migration is required unless you want the new capabilities.
 - **`list_workflows`**: List all available workflows
 - **`run_workflow`**: Run any workflow with custom parameters
 
+### Publish Tools
+
+- **`get_publish_info`**: Show publish status (detected project root, publish dir, ComfyUI output root, and any missing setup)
+- **`set_comfyui_output_root`**: Set ComfyUI output directory (recommended for Comfy Desktop / nonstandard installs; persisted across restarts)
+- **`publish_asset`**: Publish a generated asset into the project's web directory with deterministic compression (default 600KB)
+
+**Publish Notes:**
+- **Session-scoped**: `asset_id`s are valid only for the current server session; restart invalidates them.
+- **Zero-config in common cases**: Publish dir auto-detected (`public/gen`, `static/gen`, or `assets/gen`); if ComfyUI output can't be detected, set it once via `set_comfyui_output_root`.
+- **Two modes**: Demo (explicit filename) and Library (auto filename + manifest update). In library mode, `manifest_key` is required.
+- **Manifest**: Updated only when `manifest_key` is provided.
+- **Compression**: Deterministic ladder to meet size limits; fails with a clear error if it can't.
+
+**Quick Start:**
+
+Example agent conversation flow:
+
+**User:** "Generate a hero image for my website and publish it as hero.webp"
+
+**Agent:** *Checks publish configuration*
+- Calls `get_publish_info()` → sees status "ready"
+
+**Agent:** *Generates image*
+- Calls `generate_image(prompt="a hero image for a website")` → gets `asset_id`
+
+**Agent:** *Publishes asset*
+- Calls `publish_asset(asset_id="...", target_filename="hero.webp")` → success
+
+**User:** "Now generate a logo and add it to the manifest as 'site-logo'"
+
+**Agent:** *Generates and publishes with manifest*
+- Calls `generate_image(prompt="a modern logo")` → gets `asset_id`
+- Calls `publish_asset(asset_id="...", manifest_key="site-logo")` → auto-generates filename, updates manifest
+
+See [docs/HOW_TO_TEST_PUBLISH.md](docs/HOW_TO_TEST_PUBLISH.md) for detailed usage and testing instructions.
+
 ## Custom Workflows
 
 Add custom workflows by placing JSON files in the `workflows/` directory. Workflows are automatically discovered and exposed as MCP tools.

@@ -6,6 +6,83 @@ High-level architecture and design decisions for ComfyUI MCP Server.
 
 The server bridges MCP (Model Context Protocol) and ComfyUI, providing a standardized interface for AI agents to generate media through ComfyUI workflows.
 
+## Design Decisions
+
+These foundational decisions shape the entire architecture and should be understood before diving into implementation details.
+
+### Why Streamable-HTTP?
+
+- Better scalability than WebSocket
+- Cloud-ready (works behind load balancers)
+- Standard HTTP tooling
+- Stateless (easier to scale horizontally)
+
+### Why Stable Asset Identity?
+
+**Problem:** URL-based identity breaks with hostname/port changes.
+
+**Solution:** Use `(filename, subfolder, type)` tuple as stable identity:
+- Works across different ComfyUI instances (localhost, 127.0.0.1, different ports)
+- Resilient to ComfyUI restarts for already-known output identities (URL computation)
+- URLs computed on-the-fly from base_url
+- O(1) lookups via dual-index structure
+
+**Benefits:**
+- Robust to configuration changes
+- No "thor:8188" hostname bugs
+- Portable across deployments
+
+### Why UUID Asset IDs?
+
+- Globally unique external reference
+- Opaque (doesn't leak internal structure)
+- Standard format
+- Separate from stable identity (internal lookup)
+
+### Why Full Provenance Storage?
+
+**Stored Data:**
+- `comfy_history`: Full `/history/{prompt_id}` response snapshot
+- `submitted_workflow`: Original workflow JSON submitted to ComfyUI
+
+**Benefits:**
+- Free reproducibility (can regenerate with exact parameters)
+- Debugging becomes trivial (see exactly what was submitted)
+- Enables `regenerate()` tool without re-specifying everything
+- Complete audit trail
+
+**Trade-offs:**
+- History snapshots can be large for complex workflows
+- TTL-based expiration (24h) limits growth
+- Future: Consider compression or selective field storage
+
+### Why TTL Instead of Manual Deletion?
+
+- Automatic cleanup reduces memory usage
+- No manual management needed
+- Predictable behavior
+- Configurable per deployment
+
+### Why Separate view_image Tool?
+
+- Lazy loading: Only fetch/process when needed
+- Size control: Enforce limits at viewing time
+- Format conversion: Optimize for display
+- Separation of concerns: Generation vs. viewing
+
+### Why Thin Adapter Architecture?
+
+The server delegates execution to ComfyUI rather than reimplementing:
+- **Queue logic**: Direct passthrough to `/queue` endpoint
+- **History tracking**: Direct passthrough to `/history` endpoint
+- **Job cancellation**: Direct passthrough to `/queue` with delete action
+
+**Benefits:**
+- No sync issues (ComfyUI is source of truth)
+- Minimal code surface
+- Leverages ComfyUI's native capabilities
+- Easier to maintain (changes in ComfyUI automatically reflected)
+
 ## Core Components
 
 ### WorkflowManager
@@ -385,80 +462,375 @@ Uses deep copy of stored workflow, applies overrides via `_update_workflow_param
 - Direct passthrough to ComfyUI `/queue` with delete action
 - Provides user control and resource management
 
-## Design Decisions
+## Publish System
 
-### Why Streamable-HTTP?
+The publish system enables AI agents to safely copy ComfyUI-generated assets into web project directories with deterministic filenames, automatic compression, and manifest management.
 
-- Better scalability than WebSocket
-- Cloud-ready (works behind load balancers)
-- Standard HTTP tooling
-- Stateless (easier to scale horizontally)
+### Purpose
 
-### Why Stable Asset Identity?
+Bridge the gap between ComfyUI's output directory and web project asset directories:
+- Copy generated assets to project's web directory (e.g., `public/gen/`)
+- Enforce provenance (only assets from current session)
+- Provide deterministic compression to meet size limits
+- Support two modes: explicit filenames (demo) and manifest-based (library)
+- Auto-detect configuration with conservative fallbacks
 
-**Problem:** URL-based identity breaks with hostname/port changes.
+### Core Components
 
-**Solution:** Use `(filename, subfolder, type)` tuple as stable identity:
-- Works across different ComfyUI instances (localhost, 127.0.0.1, different ports)
-- Resilient to ComfyUI restarts for already-known output identities (URL computation)
-- URLs computed on-the-fly from base_url
-- O(1) lookups via dual-index structure
+#### PublishConfig
+
+**Purpose**: Manages publish configuration with auto-detection and persistent storage.
+
+**Responsibilities:**
+- Auto-detect project root (primary: `cwd`, fallback: search for markers)
+- Auto-detect publish root (`public/gen`, `static/gen`, or `assets/gen`)
+- Auto-detect ComfyUI output root (tight candidate list, validated)
+- Load/save persistent configuration (platform-specific)
+- Track detection methods and tried paths for debugging
+
+**Key Methods:**
+- `detect_project_root()`: Find project root with conservative fallback
+- `get_default_publish_root()`: Infer publish directory from project structure
+- `detect_comfyui_output_root()`: Best-effort detection with validation
+- `load_publish_config()` / `save_publish_config()`: Persistent config management
+
+**Configuration Priority:**
+1. Explicit parameters (constructor args)
+2. Persistent config file (platform-specific)
+3. Auto-detection (best-effort)
+
+#### PublishManager
+
+**Purpose**: Manages safe asset publishing with path validation, compression, and manifest updates.
+
+**Responsibilities:**
+- Validate source paths (must be within ComfyUI output root)
+- Validate target paths (must be within publish root)
+- Compress images using deterministic ladder
+- Update manifest.json atomically
+- Provide status reporting via `get_publish_info()`
+
+**Key Methods:**
+- `resolve_source_path()`: Validate and canonicalize source path
+- `resolve_target_path()`: Validate and canonicalize target path
+- `_compress_image()`: Deterministic compression ladder
+- `copy_asset()`: Copy with optional compression and atomic write
+- `update_manifest()`: Atomic manifest update with locking
+- `ensure_ready()`: Centralized configuration validation
+- `get_publish_info()`: Comprehensive status reporting
+- `set_comfyui_output_root()`: Configure and persist ComfyUI output root
+
+### Publishing Flow
+
+1. **Configuration Check**: `ensure_ready()` validates publish root and ComfyUI output root
+2. **Asset Lookup**: Retrieve asset from `AssetRegistry` by `asset_id` (session-scoped)
+3. **Source Resolution**: `resolve_source_path()` validates source is within ComfyUI output root
+4. **Target Resolution**: `resolve_target_path()` validates target filename and resolves path
+5. **Compression** (if needed): Deterministic compression ladder to meet `max_bytes` limit
+6. **Atomic Copy**: Write to temporary file, then atomic rename
+7. **Manifest Update** (if `manifest_key` provided): Atomic read/modify/write with lock
+
+### Two Publishing Modes
+
+**Demo Mode** (explicit filename):
+- Agent provides `target_filename` (e.g., `"hero.webp"`)
+- Deterministic output location: `<publish_root>/<target_filename>`
+- Manifest not updated unless `manifest_key` also provided
+- Use case: Direct file references, simple deployments
+
+**Library Mode** (auto-generated with manifest):
+- Agent provides `manifest_key`, omits `target_filename`
+- Filename auto-generated: `asset_<shortid>.webp`
+- Manifest automatically updated: `{"manifest_key": "filename"}`
+- Use case: Hot-swappable assets, dynamic loading via manifest
+
+### Key Design Decisions
+
+#### Path Safety and Canonicalization
+
+**Problem**: Path traversal attacks, symlink issues, relative path confusion.
+
+**Solution**: All paths are canonicalized before use:
+```python
+def canonicalize_path(path: Union[str, Path], must_exist: bool = True) -> Path:
+    """Resolve to absolute real path, handling symlinks."""
+    resolved = Path(path).resolve(strict=must_exist)
+    return resolved
+```
+
+**Containment Checks**: `is_within()` validates child paths are within parent directories:
+```python
+def is_within(child_path: Path, parent_path: Path, child_must_exist: bool = True) -> bool:
+    """Check if child_path is within parent_path."""
+    child_real = canonicalize_path(child_path, must_exist=child_must_exist)
+    parent_real = canonicalize_path(parent_path, must_exist=True)
+    try:
+        child_real.relative_to(parent_real)
+        return True
+    except ValueError:
+        return False
+```
+
+**Non-existent Paths**: `must_exist=False` parameter allows validation of target paths before creation, preventing path traversal even for files that don't exist yet.
 
 **Benefits:**
-- Robust to configuration changes
-- No "thor:8188" hostname bugs
-- Portable across deployments
+- Prevents `../../../etc/passwd` style attacks
+- Handles symlinks correctly (resolves to real path)
+- Works for both existing and non-existent paths
+- Clear error messages when containment fails
 
-### Why UUID Asset IDs?
+#### Provenance Enforcement
 
-- Globally unique external reference
-- Opaque (doesn't leak internal structure)
-- Standard format
-- Separate from stable identity (internal lookup)
+**Problem**: Prevent arbitrary filesystem copying, ensure assets come from ComfyUI.
 
-### Why Full Provenance Storage?
+**Solution**: Multi-layer validation:
+1. **Session-scoped `asset_id`**: Only assets registered in current session can be published
+2. **Source Validation**: Source paths must be within configured ComfyUI output root
+3. **Asset Registry Integration**: Uses existing `AssetRegistry` to verify asset identity
 
-**Stored Data:**
-- `comfy_history`: Full `/history/{prompt_id}` response snapshot
-- `submitted_workflow`: Original workflow JSON submitted to ComfyUI
-
-**Benefits:**
-- Free reproducibility (can regenerate with exact parameters)
-- Debugging becomes trivial (see exactly what was submitted)
-- Enables `regenerate()` tool without re-specifying everything
-- Complete audit trail
-
-**Trade-offs:**
-- History snapshots can be large for complex workflows
-- TTL-based expiration (24h) limits growth
-- Future: Consider compression or selective field storage
-
-### Why TTL Instead of Manual Deletion?
-
-- Automatic cleanup reduces memory usage
-- No manual management needed
-- Predictable behavior
-- Configurable per deployment
-
-### Why Separate view_image Tool?
-
-- Lazy loading: Only fetch/process when needed
-- Size control: Enforce limits at viewing time
-- Format conversion: Optimize for display
-- Separation of concerns: Generation vs. viewing
-
-### Why Thin Adapter Architecture?
-
-The server delegates execution to ComfyUI rather than reimplementing:
-- **Queue logic**: Direct passthrough to `/queue` endpoint
-- **History tracking**: Direct passthrough to `/history` endpoint
-- **Job cancellation**: Direct passthrough to `/queue` with delete action
+**Implementation:**
+- `asset_id` lookup fails if asset not in current session (expired or from different server instance)
+- Source path canonicalized and checked against `comfyui_output_root` (real path comparison)
+- No direct file system access from tools - all paths validated through manager
 
 **Benefits:**
-- No sync issues (ComfyUI is source of truth)
-- Minimal code surface
-- Leverages ComfyUI's native capabilities
-- Easier to maintain (changes in ComfyUI automatically reflected)
+- Prevents copying arbitrary files
+- Ensures assets come from ComfyUI runs
+- Session isolation prevents cross-contamination
+- Clear error messages when provenance fails
+
+#### Persistent Configuration
+
+**Problem**: Environment variables are ephemeral and not user-friendly for one-time setup.
+
+**Solution**: Platform-specific config files with tool-based configuration:
+- **Windows**: `%APPDATA%/comfyui-mcp-server/publish_config.json`
+- **Mac**: `~/Library/Application Support/comfyui-mcp-server/publish_config.json`
+- **Linux**: `~/.config/comfyui-mcp-server/publish_config.json`
+
+**Priority Order:**
+1. Explicit parameter (constructor args)
+2. Persistent config file (via `set_comfyui_output_root()` tool)
+3. Auto-detection (best-effort, tight candidate list)
+
+**Tool-based Configuration**: `set_comfyui_output_root(path)` tool:
+- Validates path exists and looks like ComfyUI output directory
+- Saves to persistent config (merged with existing)
+- Provides clear error messages if validation fails
+
+**Benefits:**
+- One-time setup persists across restarts
+- User-friendly (no environment variable management)
+- Platform-appropriate storage locations
+- Clear error messages guide configuration
+
+#### Auto-detection with Conservative Fallbacks
+
+**Project Root Detection:**
+- **Primary contract**: Server should be started from repo root (`cwd`)
+- **Conservative fallback**: Search upward (max 10 levels) for project markers:
+  - `.git`, `package.json`, `pyproject.toml`, `Cargo.toml`
+- **Ambiguity handling**: If multiple markers found at different levels, raise error with guidance
+- **Best guess**: If no markers found, use `cwd` with warning
+
+**Publish Root Detection:**
+- Tries in order: `public/gen` → `static/gen` → `assets/gen`
+- Uses first parent directory that exists
+- Creates directory if needed
+- Defaults to `public/gen` if none exist
+
+**ComfyUI Output Root Detection:**
+- **Tight candidate list**: 2-5 specific paths (no broad scanning)
+- **Priority**: Persistent config → specific candidates (e.g., `comfyui-desktop/output`)
+- **Validation**: Pattern matching (ComfyUI_*.png files, image files, output/temp subdirs)
+- **Reporting**: All tried paths returned with validation results
+
+**Benefits:**
+- Zero-config in common cases
+- Conservative (doesn't scan entire filesystem)
+- Clear error messages with tried paths
+- User can override with `set_comfyui_output_root()` tool
+
+#### Deterministic Compression Ladder
+
+**Problem**: Need predictable compression to meet size limits without heuristics.
+
+**Solution**: Fixed sequence of compression attempts:
+1. **Quality progression**: [85, 75, 65, 55, 45, 35]
+2. **Downscale factors**: [1.0, 0.9, 0.75, 0.6, 0.5] (if needed)
+3. **Format conversion**: PNG/JPEG → WebP (if `format="webp"`)
+
+**Algorithm:**
+```python
+for downscale_factor in [1.0, 0.9, 0.75, 0.6, 0.5]:
+    im_resized = im.resize(new_size) if downscale_factor < 1.0 else im
+    for quality in [85, 75, 65, 55, 45, 35]:
+        compressed_bytes = save_with_quality(im_resized, quality)
+        if len(compressed_bytes) <= max_bytes:
+            return compressed_bytes, compression_info
+```
+
+**Compression Info Returned:**
+- `compressed`: Whether compression was applied
+- `original_size`: Original file size
+- `final_size`: Compressed file size
+- `quality`: Quality level used
+- `original_dimensions`: Original image dimensions
+- `final_dimensions`: Final image dimensions (if downscaled)
+- `downscaled`: Whether downscaling was applied
+
+**Benefits:**
+- Reproducible results (same input → same output)
+- Clear failure modes (can't compress below limit)
+- Detailed feedback for debugging
+- Predictable behavior for agents
+
+#### Atomic Manifest Updates
+
+**Problem**: Race conditions when multiple processes update `manifest.json`.
+
+**Solution**: Process-level locking with atomic writes:
+```python
+_manifest_lock = threading.Lock()  # Process-level lock
+
+def update_manifest(self, manifest_key: str, filename: str):
+    with self._manifest_lock:
+        # Read existing manifest
+        manifest = json.load(manifest_path) if manifest_path.exists() else {}
+        # Update entry
+        manifest[manifest_key] = filename
+        # Atomic write: temp file + rename
+        temp_path = manifest_path.with_suffix(".tmp")
+        json.dump(manifest, temp_path)
+        temp_path.replace(manifest_path)  # Atomic on most filesystems
+```
+
+**Benefits:**
+- Prevents corruption from concurrent updates
+- Atomic writes prevent partial updates
+- Simple key-value format (no arrays in v1)
+- Fast (in-memory lock, minimal I/O)
+
+#### Strict Validation
+
+**Filename Validation:**
+- Regex: `^[a-z0-9][a-z0-9._-]{0,63}\.(webp|png|jpg|jpeg)$`
+- Prevents path traversal (`../`, `/`, `\`)
+- Enforces safe naming (lowercase, alphanumeric, dots, dashes, underscores)
+- Length limit: 64 characters (including extension)
+
+**Manifest Key Validation:**
+- Regex: `^[a-z0-9][a-z0-9._-]{0,63}$`
+- Same pattern as filename but without extension
+- Prevents injection and ensures safe keys
+
+**Early Validation**: All validation happens before any file operations:
+- Filename validated before path resolution
+- Manifest key validated before manifest update
+- Source path validated before file access
+- Target path validated before write
+
+**Benefits:**
+- Prevents path traversal attacks
+- Clear error messages before operations
+- Consistent validation across all entry points
+
+#### Operational Honesty
+
+**Status Reporting**: `get_publish_info()` provides comprehensive configuration status:
+- Project root (path and detection method)
+- Publish root (path and writability)
+- ComfyUI output root (path, method, validation status)
+- All tried paths with validation results
+- Status: `"ready"` | `"needs_comfyui_root"` | `"error"`
+- Human-readable messages and warnings
+
+**Machine-readable Errors**: Standardized error codes:
+- `ASSET_NOT_FOUND_OR_EXPIRED`: Asset not in current session
+- `COMFYUI_OUTPUT_ROOT_NOT_FOUND`: ComfyUI output root not configured
+- `INVALID_TARGET_FILENAME`: Filename doesn't match regex
+- `SOURCE_PATH_OUTSIDE_ROOT`: Source file outside ComfyUI output root
+- `PATH_TRAVERSAL_DETECTED`: Path traversal attempt detected
+- `PUBLISH_ROOT_NOT_WRITABLE`: Publish directory not writable
+
+**Tried Paths Reporting**: Shows all attempted detection paths with validation results:
+```json
+{
+  "comfyui_tried_paths": [
+    {"path": "E:/comfyui-desktop/output", "exists": true, "is_valid": true, "source": "persistent_config"},
+    {"path": "E:/ComfyUI/output", "exists": false, "is_valid": false, "source": "candidate"}
+  ]
+}
+```
+
+**Benefits:**
+- Agents can diagnose configuration issues
+- Clear guidance for fixing problems
+- No silent failures
+- Debugging information available
+
+### Security Considerations
+
+#### Path Traversal Prevention
+
+**Multi-layer Defense:**
+1. **Filename Validation**: Regex prevents `../`, `/`, `\` in filenames
+2. **Path Canonicalization**: All paths resolved to absolute real paths
+3. **Containment Checks**: `is_within()` validates child within parent
+4. **Source Validation**: Source must be within ComfyUI output root
+5. **Target Validation**: Target must be within publish root
+
+**Example Attack Prevention:**
+```python
+# Attack attempt: "../../../etc/passwd"
+target_filename = "../../../etc/passwd"  # Blocked by regex validation
+
+# Attack attempt: symlink to sensitive file
+source_path = canonicalize_path(symlink)  # Resolves to real path
+is_within(source_path, comfyui_output_root)  # Validates containment
+```
+
+#### Provenance Enforcement
+
+- Only assets from current session can be published (`asset_id` lookup)
+- Source paths validated against ComfyUI output root
+- No arbitrary file copying
+- Session isolation prevents cross-contamination
+
+#### Atomic Operations
+
+- Manifest updates use process-level locking
+- File writes use temporary file + atomic rename
+- Prevents corruption from concurrent access
+- Prevents partial updates
+
+### Performance Considerations
+
+#### Compression Performance
+
+- **Deterministic Ladder**: Fixed sequence means predictable performance
+- **Early Exit**: Stops at first successful compression attempt
+- **Quality vs. Size**: Tries quality first (faster), then downscaling (slower)
+- **Format Conversion**: WebP encoding is CPU-intensive but provides best compression
+
+#### Path Resolution
+
+- **Canonicalization**: `Path.resolve()` is O(1) for most cases (cached by filesystem)
+- **Containment Check**: `relative_to()` is O(1) for valid paths
+- **Validation**: Regex validation is O(n) where n is filename length (typically < 64 chars)
+
+#### Manifest Updates
+
+- **Lock Contention**: Process-level lock prevents concurrent updates (acceptable for low-frequency operations)
+- **Atomic Writes**: Temporary file + rename is atomic on most filesystems
+- **JSON Parsing**: Small manifest files (< 1KB typically) parse quickly
+
+#### Auto-detection
+
+- **Project Root**: Upward search limited to 10 levels (O(10) file checks)
+- **Publish Root**: 3 candidate checks (O(3) directory checks)
+- **ComfyUI Output Root**: 2-5 candidate checks with validation (O(5) file system checks)
+- **Caching**: Detection results cached in `PublishConfig` instance
 
 ## Future Considerations
 
