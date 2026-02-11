@@ -43,6 +43,7 @@ COMFYUI_MAX_DELAY = 16  # Maximum delay in seconds
 # Publish configuration (optional env var for COMFYUI_OUTPUT_ROOT only)
 COMFYUI_OUTPUT_ROOT = os.getenv("COMFYUI_OUTPUT_ROOT")
 
+SERVER_HOST = os.getenv("SERVER_HOST", "127.0.0.1")
 
 def print_startup_banner():
     """Print a nice startup banner for the server."""
@@ -187,7 +188,8 @@ mcp = FastMCP(
     "ComfyUI_MCP_Server",
     lifespan=app_lifespan,
     port=9000,
-    stateless_http=True
+    stateless_http=True,
+    host=SERVER_HOST
 )
 
 # Register all MCP tools
