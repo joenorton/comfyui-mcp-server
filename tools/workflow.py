@@ -64,25 +64,35 @@ def register_workflow_tools(
             workflow = workflow_manager.apply_workflow_overrides(
                 workflow, workflow_id, overrides, defaults_manager
             )
-            
+
+            # Extract and remove override report before submitting to ComfyUI
+            override_report = workflow.pop("__override_report__", None)
+
             # Determine output preferences
             output_preferences = workflow_manager._guess_output_preferences(workflow)
-            
+
             # Execute workflow
             result = comfyui_client.run_custom_workflow(
                 workflow,
                 preferred_output_keys=output_preferences,
             )
-            
+
             # Register asset and build response
-            return register_and_build_response(
+            response = register_and_build_response(
                 result,
                 workflow_id,
                 asset_registry,
                 tool_name=None,
                 return_inline_preview=return_inline_preview,
-                session_id=None  # Session tracking can be added via request context in the future
+                session_id=None
             )
+
+            # Include override report so the agent can see what was applied/dropped
+            if override_report and override_report.get("overrides_dropped"):
+                response["overrides_applied"] = override_report["overrides_applied"]
+                response["overrides_dropped"] = override_report["overrides_dropped"]
+
+            return response
         except Exception as exc:
             logger.exception("Workflow '%s' failed", workflow_id)
             return {"error": str(exc)}

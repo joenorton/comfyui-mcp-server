@@ -7,6 +7,7 @@ import random
 from typing import Any, Dict, Optional
 
 from mcp.server.fastmcp import FastMCP
+from managers.workflow_manager import AUDIO_OUTPUT_KEYS, VIDEO_OUTPUT_KEYS
 from models.workflow import WorkflowToolDefinition
 from tools.helpers import register_and_build_response
 
@@ -70,33 +71,35 @@ def register_workflow_generation_tools(
             bound = _tool_impl.__signature__.bind(*args, **coerced_kwargs)
             bound.apply_defaults()
             
-            # Determine namespace for validation (needed in both try and except blocks)
-            namespace = "image"  # default
-            if definition.workflow_id == "generate_song":
+            # Determine namespace using workflow manager (content-aware)
+            namespace = workflow_manager._determine_namespace(definition.workflow_id)
+            # Refine using output preferences (catches custom audio/video workflows)
+            if definition.output_preferences == AUDIO_OUTPUT_KEYS:
                 namespace = "audio"
-            elif definition.workflow_id == "generate_video":
+            elif definition.output_preferences == VIDEO_OUTPUT_KEYS:
                 namespace = "video"
-            
+
             try:
-                # Validate model before rendering workflow
-                provided_model = dict(bound.arguments).get("model")
-                resolved_model = defaults_manager.get_default(namespace, "model", provided_model)
-                
-                if resolved_model and not defaults_manager.is_model_valid(namespace, resolved_model):
-                    # Model is invalid - get source and available models for error message
-                    is_valid, model_name, source = defaults_manager.validate_default_model(namespace)
-                    available_models = list(defaults_manager._available_models_set)
-                    sample_models = available_models[:5] if available_models else []
-                    
-                    error_msg = (
-                        f"Default model '{model_name}' (from {source} defaults) not found in ComfyUI checkpoints. "
-                        f"Set a valid model via `set_defaults`, config file, or env var. "
-                        f"Try `list_models` to see available checkpoints."
-                    )
-                    if sample_models:
-                        error_msg += f" Available models: {sample_models}"
-                    
-                    return {"error": error_msg}
+                # Only validate model if the workflow actually has a 'model' parameter
+                has_model_param = "model" in definition.parameters
+                if has_model_param:
+                    provided_model = dict(bound.arguments).get("model")
+                    resolved_model = defaults_manager.get_default(namespace, "model", provided_model)
+
+                    if resolved_model and not defaults_manager.is_model_valid(namespace, resolved_model):
+                        is_valid, model_name, source = defaults_manager.validate_default_model(namespace)
+                        available_models = list(defaults_manager._available_models_set)
+                        sample_models = available_models[:5] if available_models else []
+
+                        error_msg = (
+                            f"Default model '{model_name}' (from {source} defaults) not found in ComfyUI checkpoints. "
+                            f"Set a valid model via `set_defaults`, config file, or env var. "
+                            f"Try `list_models` to see available checkpoints."
+                        )
+                        if sample_models:
+                            error_msg += f" Available models: {sample_models}"
+
+                        return {"error": error_msg}
                 
                 workflow = workflow_manager.render_workflow(definition, dict(bound.arguments), defaults_manager)
                 result = comfyui_client.run_custom_workflow(
@@ -116,22 +119,19 @@ def register_workflow_generation_tools(
                 
             except Exception as exc:
                 error_str = str(exc).lower()
-                # Check if error is related to missing model
-                if "model" in error_str or "checkpoint" in error_str or "ckpt" in error_str:
-                    # Refresh model set and re-check
+                # Check if error is related to missing model (only if workflow uses models)
+                if has_model_param and ("model" in error_str or "checkpoint" in error_str or "ckpt" in error_str):
                     comfyui_client.refresh_models()
                     defaults_manager.refresh_model_set()
-                    
-                    # Re-validate the model
+
                     provided_model = dict(bound.arguments).get("model")
                     resolved_model = defaults_manager.get_default(namespace, "model", provided_model)
-                    
+
                     if resolved_model and not defaults_manager.is_model_valid(namespace, resolved_model):
-                        # Still invalid after refresh
                         is_valid, model_name, source = defaults_manager.validate_default_model(namespace)
                         available_models = list(defaults_manager._available_models_set)
                         sample_models = available_models[:5] if available_models else []
-                        
+
                         error_msg = (
                             f"Default model '{model_name}' (from {source} defaults) not found in ComfyUI checkpoints. "
                             f"Set a valid model via `set_defaults`, config file, or env var. "
@@ -139,9 +139,9 @@ def register_workflow_generation_tools(
                         )
                         if sample_models:
                             error_msg += f" Available models: {sample_models}"
-                        
+
                         return {"error": error_msg}
-                
+
                 logger.exception("Workflow '%s' failed", definition.workflow_id)
                 return {"error": str(exc)}
 

@@ -49,8 +49,9 @@ class WorkflowManager:
     def __init__(self, workflows_dir: Path):
         self.workflows_dir = Path(workflows_dir).resolve()
         self._tool_names: set[str] = set()
-        self.tool_definitions = self._load_workflows()
         self._workflow_cache: Dict[str, Dict[str, Any]] = {}
+        self._workflow_mtime: Dict[str, float] = {}  # Track file modification times for cache invalidation
+        self.tool_definitions = self._load_workflows()
     
     def _safe_workflow_path(self, workflow_id: str) -> Optional[Path]:
         """Resolve workflow ID to file path with path traversal protection"""
@@ -137,52 +138,81 @@ class WorkflowManager:
         return catalog
     
     def load_workflow(self, workflow_id: str) -> Optional[Dict[str, Any]]:
-        """Load workflow by ID with caching"""
-        if workflow_id in self._workflow_cache:
-            return copy.deepcopy(self._workflow_cache[workflow_id])
-        
+        """Load workflow by ID with mtime-based cache invalidation.
+
+        Checks file modification time on each call. If the file has been
+        modified since last load, the cache entry is invalidated and the
+        workflow is reloaded from disk.
+        """
         workflow_path = self._safe_workflow_path(workflow_id)
         if not workflow_path:
             return None
-        
+
+        # Check if cached version is still fresh
+        try:
+            current_mtime = workflow_path.stat().st_mtime
+        except OSError:
+            current_mtime = None
+
+        if workflow_id in self._workflow_cache:
+            cached_mtime = self._workflow_mtime.get(workflow_id)
+            if current_mtime is not None and cached_mtime == current_mtime:
+                return copy.deepcopy(self._workflow_cache[workflow_id])
+            else:
+                logger.info("Workflow '%s' changed on disk (mtime %s -> %s), reloading", workflow_id, cached_mtime, current_mtime)
+
         try:
             with open(workflow_path, "r", encoding="utf-8") as f:
                 workflow = json.load(f)
             self._workflow_cache[workflow_id] = workflow
+            if current_mtime is not None:
+                self._workflow_mtime[workflow_id] = current_mtime
             return copy.deepcopy(workflow)
         except (json.JSONDecodeError, IOError) as e:
             logger.error(f"Failed to load workflow {workflow_id}: {e}")
             return None
     
     def apply_workflow_overrides(self, workflow: Dict[str, Any], workflow_id: str, overrides: Dict[str, Any], defaults_manager: Optional["DefaultsManager"] = None) -> Dict[str, Any]:
-        """Apply constrained overrides to workflow based on metadata"""
+        """Apply constrained overrides to workflow based on metadata.
+
+        The returned workflow dict contains an ``__override_report__`` key
+        with 'overrides_applied' and 'overrides_dropped' dicts.  Callers
+        should pop this key before submitting the workflow to ComfyUI.
+        """
         from managers.defaults_manager import DefaultsManager
-        
+
         workflow_path = self._safe_workflow_path(workflow_id)
         if not workflow_path:
             raise ValueError(f"Workflow {workflow_id} not found")
-        
+
         metadata = self._load_workflow_metadata(workflow_path)
         override_mappings = metadata.get("override_mappings", {})
         constraints = metadata.get("constraints", {})
-        
+
         # If no metadata, try to infer from PARAM_ placeholders
         if not override_mappings:
             parameters = self._extract_parameters(workflow)
             for param_name, param in parameters.items():
-                # Build mapping from parameter name to node bindings
                 if param_name not in override_mappings:
                     override_mappings[param_name] = param.bindings
-        
+
         # Determine namespace for defaults
         namespace = self._determine_namespace(workflow_id)
-        
+
+        # Track which overrides were applied vs dropped
+        overrides_applied = {}
+        overrides_dropped = {}
+
+        # Extract parameters once for type coercion
+        parameters = self._extract_parameters(workflow)
+
         # Apply overrides with constraints
         for param_name, value in overrides.items():
             if param_name not in override_mappings:
-                logger.warning(f"Override '{param_name}' not in declared mappings for {workflow_id}, skipping")
+                logger.warning(f"Override '{param_name}' has no matching PARAM_ placeholder in {workflow_id}, skipping")
+                overrides_dropped[param_name] = f"No matching PARAM_{param_name.upper()} placeholder in workflow"
                 continue
-            
+
             # Apply constraints if defined
             if param_name in constraints:
                 constraint = constraints[param_name]
@@ -192,22 +222,21 @@ class WorkflowManager:
                     raise ValueError(f"Value '{value}' for '{param_name}' below minimum: {constraint['min']}")
                 if "max" in constraint and value > constraint["max"]:
                     raise ValueError(f"Value '{value}' for '{param_name}' above maximum: {constraint['max']}")
-            
+
             # Get parameter type from extracted parameters
-            parameters = self._extract_parameters(workflow)
             if param_name in parameters:
                 param = parameters[param_name]
                 coerced_value = self._coerce_value(value, param.annotation)
             else:
                 coerced_value = value
-            
+
             # Apply to all bindings
             for node_id, input_name in override_mappings[param_name]:
                 if node_id in workflow and "inputs" in workflow[node_id]:
                     workflow[node_id]["inputs"][input_name] = coerced_value
-        
+            overrides_applied[param_name] = value
+
         # Apply defaults for parameters not in overrides
-        parameters = self._extract_parameters(workflow)
         for param_name, param in parameters.items():
             if param_name not in overrides and not param.required:
                 if defaults_manager:
@@ -216,8 +245,42 @@ class WorkflowManager:
                         for node_id, input_name in param.bindings:
                             if node_id in workflow and "inputs" in workflow[node_id]:
                                 workflow[node_id]["inputs"][input_name] = default_value
-        
+
+        # Store the report on the workflow dict so callers can access it
+        # (using a private key that won't conflict with node IDs which are numeric strings)
+        workflow["__override_report__"] = {
+            "overrides_applied": overrides_applied,
+            "overrides_dropped": overrides_dropped,
+        }
+
         return workflow
+
+    def _refresh_definition_if_stale(self, definition: WorkflowToolDefinition) -> None:
+        """Reload a tool definition's template from disk if the file has been modified."""
+        workflow_path = self._safe_workflow_path(definition.workflow_id)
+        if not workflow_path:
+            return
+
+        try:
+            current_mtime = workflow_path.stat().st_mtime
+        except OSError:
+            return
+
+        cached_mtime = self._workflow_mtime.get(definition.workflow_id)
+        if cached_mtime is not None and cached_mtime == current_mtime:
+            return  # File hasn't changed
+
+        logger.info("Refreshing tool definition '%s' from disk (mtime changed)", definition.workflow_id)
+        try:
+            with open(workflow_path, "r", encoding="utf-8") as f:
+                workflow = json.load(f)
+            definition.template = workflow
+            definition.parameters = self._extract_parameters(workflow)
+            definition.output_preferences = self._guess_output_preferences(workflow)
+            self._workflow_cache[definition.workflow_id] = workflow
+            self._workflow_mtime[definition.workflow_id] = current_mtime
+        except (json.JSONDecodeError, IOError) as e:
+            logger.error("Failed to refresh workflow %s: %s", definition.workflow_id, e)
 
     def _load_workflows(self):
         definitions: list[WorkflowToolDefinition] = []
@@ -251,6 +314,11 @@ class WorkflowManager:
                 parameters=parameters,
                 output_preferences=self._guess_output_preferences(workflow),
             )
+            # Store initial mtime for cache invalidation
+            try:
+                self._workflow_mtime[workflow_path.stem] = workflow_path.stat().st_mtime
+            except OSError:
+                pass
             logger.info(
                 "Prepared workflow tool '%s' from %s with params %s",
                 tool_name,
@@ -263,7 +331,10 @@ class WorkflowManager:
 
     def render_workflow(self, definition: WorkflowToolDefinition, provided_params: Dict[str, Any], defaults_manager: Optional["DefaultsManager"] = None):
         from managers.defaults_manager import DefaultsManager
-        
+
+        # Check if the workflow file has changed on disk and refresh the template
+        self._refresh_definition_if_stale(definition)
+
         workflow = copy.deepcopy(definition.template)
         
         # Determine namespace (image, audio, or video)

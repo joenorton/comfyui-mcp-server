@@ -61,7 +61,19 @@ class ComfyUIClient:
 
         prompt_id = self._queue_workflow(workflow)
         outputs = self._wait_for_prompt(prompt_id, max_attempts=max_attempts)
-        
+
+        # If outputs is None, the workflow is still running (timeout).
+        # Return a job handle instead of raising an error.
+        if outputs is None:
+            return {
+                "status": "running",
+                "prompt_id": prompt_id,
+                "message": (
+                    f"Workflow still running after {max_attempts}s. "
+                    f"Use get_job(prompt_id='{prompt_id}') to poll for completion."
+                ),
+            }
+
         # Extract asset info (filename, subfolder, type) - stable identity
         asset_info = self._extract_first_asset_info(outputs, preferred_output_keys)
         asset_url = asset_info["asset_url"]
@@ -186,6 +198,72 @@ class ComfyUIClient:
         logger.info(f"Queued workflow with prompt_id: {prompt_id}")
         return prompt_id
 
+    @staticmethod
+    def _has_status_message(messages, target: str) -> bool:
+        """Check if a status messages list contains a target message type.
+
+        ComfyUI status messages come as either a list of [type, data] pairs
+        or a dict with 'messages' key.
+        """
+        if not messages:
+            return False
+        for msg in messages:
+            if isinstance(msg, list) and len(msg) > 0 and msg[0] == target:
+                return True
+            if isinstance(msg, str) and msg == target:
+                return True
+        return False
+
+    @staticmethod
+    def _extract_node_errors(prompt_data: dict) -> str:
+        """Extract human-readable error details from ComfyUI history data.
+
+        Looks in prompt_data['status']['messages'] for execution_error entries
+        which contain node_id, node_type, exception_message, and
+        exception_type. Falls back to other status fields when the structured
+        error is not available.
+        """
+        parts: list[str] = []
+
+        # Try structured status dict first (ComfyUI v2 history format)
+        status = prompt_data.get("status", {})
+        if isinstance(status, dict):
+            messages = status.get("messages", [])
+            for msg in messages:
+                if isinstance(msg, list) and len(msg) >= 2 and msg[0] == "execution_error":
+                    data = msg[1] if isinstance(msg[1], dict) else {}
+                    node_type = data.get("node_type", "unknown")
+                    node_id = data.get("node_id", "?")
+                    exc_type = data.get("exception_type", "Error")
+                    exc_msg = data.get("exception_message", "unknown error")
+                    parts.append(f"Node {node_id} ({node_type}): [{exc_type}] {exc_msg}")
+                    # Include traceback summary if available
+                    traceback_lines = data.get("traceback", [])
+                    if traceback_lines and isinstance(traceback_lines, list):
+                        # Just the last meaningful line
+                        for line in reversed(traceback_lines):
+                            stripped = line.strip() if isinstance(line, str) else ""
+                            if stripped and not stripped.startswith("Traceback") and not stripped.startswith("File"):
+                                parts.append(f"  -> {stripped}")
+                                break
+
+        # Legacy list-of-lists format
+        if not parts and isinstance(status, list):
+            for entry in status:
+                if isinstance(entry, list) and len(entry) >= 2 and entry[0] == "execution_error":
+                    parts.append(f"Execution error: {entry[1]}")
+
+        # Check for top-level 'error' key
+        if not parts and "error" in prompt_data:
+            parts.append(f"Error: {json.dumps(prompt_data['error'])}")
+
+        if not parts:
+            # Last resort: dump status for debugging
+            status_summary = json.dumps(status, indent=2) if status else "no status info"
+            parts.append(f"No detailed error info. Status: {status_summary}")
+
+        return "; ".join(parts)
+
     def _wait_for_prompt(self, prompt_id: str, max_attempts: int = 30):
         for attempt in range(max_attempts):
             try:
@@ -220,61 +298,76 @@ class ComfyUIClient:
                     time.sleep(1)
                     continue
                 
-                # Check for workflow errors
+                # Check for workflow errors (top-level and status-embedded)
                 if "error" in prompt_data:
                     error_info = prompt_data["error"]
                     raise Exception(f"Workflow failed with error: {json.dumps(error_info, indent=2)}")
-                
+
                 # Check if workflow status indicates failure
                 status = prompt_data.get("status", {})
-                if isinstance(status, dict) and status.get("completed") == False:
-                    error_msg = status.get("messages", ["Workflow failed"])
-                    raise Exception(f"Workflow failed: {error_msg}")
+                if isinstance(status, dict):
+                    if status.get("completed") == False:
+                        error_msg = status.get("messages", ["Workflow failed"])
+                        raise Exception(f"Workflow failed: {error_msg}")
+                    # Check status_str for execution_error
+                    if status.get("status_str") == "error":
+                        node_errors = self._extract_node_errors(prompt_data)
+                        raise Exception(f"Workflow execution error: {node_errors}")
                 
                 # Get outputs
                 if "outputs" not in prompt_data:
                     # Check status to see if workflow completed
-                    status = prompt_data.get("status", [])
-                    if isinstance(status, list) and len(status) > 0:
-                        last_status = status[-1]
-                        if isinstance(last_status, list) and len(last_status) > 0:
-                            status_type = last_status[0]
-                            if status_type == "execution_success":
-                                # Workflow completed successfully but outputs not yet available
-                                # Wait a bit longer for outputs to be written, especially for cached executions
-                                logger.info("Workflow execution succeeded, waiting for outputs to be available...")
-                                time.sleep(3)  # Give ComfyUI time to write outputs (longer for cached)
-                                # Try fetching full history to see if outputs appear there
-                                try:
-                                    full_history_response = requests.get(f"{self.base_url}/history", timeout=10)
-                                    if full_history_response.status_code == 200:
-                                        full_history = full_history_response.json()
-                                        if prompt_id in full_history:
-                                            full_prompt_data = full_history[prompt_id]
-                                            if "outputs" in full_prompt_data and full_prompt_data["outputs"]:
-                                                logger.info("Found outputs in full history endpoint")
-                                                return full_prompt_data["outputs"]
-                                except Exception as e:
-                                    logger.debug("Could not fetch full history: %s", e)
-                                continue
+                    status = prompt_data.get("status", {})
+                    status_str = status.get("status_str", "") if isinstance(status, dict) else ""
+                    messages = status.get("messages", []) if isinstance(status, dict) else status if isinstance(status, list) else []
+
+                    # Check for execution_error in status
+                    if status_str == "error" or self._has_status_message(messages, "execution_error"):
+                        node_errors = self._extract_node_errors(prompt_data)
+                        raise Exception(f"Workflow execution failed: {node_errors}")
+
+                    if self._has_status_message(messages, "execution_success"):
+                        logger.info("Workflow execution succeeded, waiting for outputs to be available...")
+                        time.sleep(3)
+                        try:
+                            full_history_response = requests.get(f"{self.base_url}/history", timeout=10)
+                            if full_history_response.status_code == 200:
+                                full_history = full_history_response.json()
+                                if prompt_id in full_history:
+                                    full_prompt_data = full_history[prompt_id]
+                                    if "outputs" in full_prompt_data and full_prompt_data["outputs"]:
+                                        logger.info("Found outputs in full history endpoint")
+                                        return full_prompt_data["outputs"]
+                        except Exception as e:
+                            logger.debug("Could not fetch full history: %s", e)
+                        continue
+
                     logger.warning("Prompt data missing outputs on attempt %s. Full data: %s", attempt + 1, json.dumps(prompt_data, indent=2))
                     time.sleep(1)
                     continue
-                
+
                 outputs = prompt_data["outputs"]
                 if not outputs or not isinstance(outputs, dict):
-                    # Check if workflow actually succeeded
-                    status = prompt_data.get("status", [])
-                    if isinstance(status, list):
-                        status_messages = [s[0] if isinstance(s, list) else str(s) for s in status]
-                        if "execution_success" in status_messages:
-                            # Workflow succeeded but no outputs - might need to check queue or wait longer
-                            logger.warning("Workflow succeeded but outputs empty. Status: %s. Waiting longer...", status_messages)
-                            time.sleep(2)
-                            continue
-                        raise Exception(f"Workflow completed but produced no outputs. Status: {status_messages}")
-                    logger.warning("Outputs is empty or not a dict. Prompt data: %s", json.dumps(prompt_data, indent=2))
-                    raise Exception("Workflow completed but produced no outputs. Check ComfyUI logs for errors.")
+                    status = prompt_data.get("status", {})
+                    status_str = status.get("status_str", "") if isinstance(status, dict) else ""
+                    messages = status.get("messages", []) if isinstance(status, dict) else status if isinstance(status, list) else []
+
+                    # Check for errors first
+                    if status_str == "error" or self._has_status_message(messages, "execution_error"):
+                        node_errors = self._extract_node_errors(prompt_data)
+                        raise Exception(f"Workflow execution failed: {node_errors}")
+
+                    if self._has_status_message(messages, "execution_success"):
+                        logger.warning("Workflow succeeded but outputs empty. Waiting longer...")
+                        time.sleep(2)
+                        continue
+
+                    # Build diagnostic message from whatever status info we have
+                    node_errors = self._extract_node_errors(prompt_data)
+                    raise Exception(
+                        f"Workflow completed but produced no outputs. "
+                        f"Diagnostics: {node_errors}"
+                    )
                 
                 logger.info("Workflow completed. Output nodes: %s", list(outputs.keys()))
                 logger.debug("Full workflow outputs: %s", json.dumps(outputs, indent=2))
@@ -289,7 +382,9 @@ class ComfyUIClient:
                 time.sleep(1)
                 continue
         
-        raise Exception(f"Workflow {prompt_id} didn't complete within {max_attempts} seconds")
+        # Instead of raising, return a sentinel so callers can return a job handle
+        logger.warning("Workflow %s still running after %s seconds", prompt_id, max_attempts)
+        return None  # Signals timeout — caller should return a job handle
 
     def _extract_first_asset_url(self, outputs: Dict[str, Any], preferred_output_keys: Sequence[str]):
         # Log available outputs for debugging

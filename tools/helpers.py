@@ -17,9 +17,9 @@ def register_and_build_response(
     session_id: Optional[str] = None
 ) -> Dict[str, Any]:
     """Helper function to register asset and build response data.
-    
+
     Eliminates code duplication between run_workflow() and _register_workflow_tool().
-    
+
     Args:
         result: Result dict from comfyui_client.run_custom_workflow()
         workflow_id: Workflow ID
@@ -27,10 +27,15 @@ def register_and_build_response(
         tool_name: Optional tool name (for workflow-backed tools)
         return_inline_preview: Whether to include inline preview
         session_id: Optional session identifier for conversation filtering
-    
+
     Returns:
         Response data dict with asset_id, asset_url, metadata, etc.
+        If the workflow is still running (timeout), returns a job handle dict instead.
     """
+    # If the result is a "still running" job handle, pass it through directly
+    if result.get("status") == "running":
+        return result
+
     # Register asset in registry using stable identity
     asset_metadata = result.get("asset_metadata", {})
     metadata = {"workflow_id": workflow_id}
