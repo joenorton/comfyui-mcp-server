@@ -216,7 +216,10 @@ if __name__ == "__main__":
         print("=" * 70 + "\n")
         logger.info("Starting MCP server with stdio transport (for MCP clients)")
         logger.info(f"ComfyUI verified at: {COMFYUI_URL}")
-        mcp.run(transport="stdio")
+        try:
+            mcp.run(transport="stdio")
+        except KeyboardInterrupt:
+            print("\n[*] Server stopped.")
     else:
         print("\n" + "=" * 70)
         print("[+] Server Ready".center(70))
@@ -227,4 +230,7 @@ if __name__ == "__main__":
         print("=" * 70 + "\n")
         logger.info("Starting MCP server with streamable-http transport on http://127.0.0.1:9000/mcp")
         logger.info(f"ComfyUI verified at: {COMFYUI_URL}")
-        mcp.run(transport="streamable-http")
+        try:
+            mcp.run(transport="streamable-http")
+        except KeyboardInterrupt:
+            print("\n[*] Server stopped.")

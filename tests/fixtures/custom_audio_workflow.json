@@ -1,0 +1,66 @@
+{
+  "1": {
+    "inputs": {
+      "tags": "PARAM_TAGS",
+      "lyrics": "PARAM_LYRICS"
+    },
+    "class_type": "TextEncodeAceStepAudio",
+    "_meta": { "title": "Encode Audio" }
+  },
+  "2": {
+    "inputs": {
+      "seed": "PARAM_INT_SEED",
+      "steps": 50,
+      "cfg": 5.0,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "denoise": 1,
+      "model": ["3", 0],
+      "positive": ["1", 0],
+      "negative": ["4", 0],
+      "latent_image": ["5", 0]
+    },
+    "class_type": "KSampler",
+    "_meta": { "title": "KSampler" }
+  },
+  "3": {
+    "inputs": {
+      "ckpt_name": "ace_step_v1_3.5b.safetensors"
+    },
+    "class_type": "CheckpointLoaderSimple",
+    "_meta": { "title": "Load Checkpoint" }
+  },
+  "4": {
+    "inputs": {
+      "conditioning": ["1", 0]
+    },
+    "class_type": "ConditioningZeroOut",
+    "_meta": { "title": "Negative" }
+  },
+  "5": {
+    "inputs": {
+      "seconds": 30,
+      "batch_size": 1
+    },
+    "class_type": "EmptyAceStepLatentAudio",
+    "_meta": { "title": "Empty Audio Latent" }
+  },
+  "6": {
+    "inputs": {
+      "samples": ["2", 0],
+      "vae": ["3", 2]
+    },
+    "class_type": "VAEDecodeAudio",
+    "_meta": { "title": "Decode Audio" }
+  },
+  "7": {
+    "inputs": {
+      "filename_prefix": "audio/ComfyUI",
+      "quality": "V0",
+      "audioUI": "",
+      "audio": ["6", 0]
+    },
+    "class_type": "SaveAudioMP3",
+    "_meta": { "title": "Save Audio (MP3)" }
+  }
+}
