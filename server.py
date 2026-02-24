@@ -10,7 +10,7 @@ from typing import AsyncIterator
 
 import requests
 
-from mcp.server.fastmcp import FastMCP
+from fastmcp import FastMCP
 
 from comfyui_client import ComfyUIClient
 from managers.asset_registry import AssetRegistry
@@ -181,13 +181,9 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
 
 
 # Initialize FastMCP with lifespan and port configuration
-# Using port 9000 for consistency with previous version
-# Enable stateless_http to avoid requiring session management
 mcp = FastMCP(
     "ComfyUI_MCP_Server",
     lifespan=app_lifespan,
-    port=9000,
-    stateless_http=True
 )
 
 # Register all MCP tools
@@ -231,6 +227,6 @@ if __name__ == "__main__":
         logger.info("Starting MCP server with streamable-http transport on http://127.0.0.1:9000/mcp")
         logger.info(f"ComfyUI verified at: {COMFYUI_URL}")
         try:
-            mcp.run(transport="streamable-http")
+            mcp.run(transport="streamable-http", port=9000, stateless_http=True)
         except KeyboardInterrupt:
             print("\n[*] Server stopped.")

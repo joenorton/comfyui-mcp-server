@@ -3,7 +3,7 @@
 import logging
 from typing import Any, Dict, Optional
 
-from mcp.server.fastmcp import FastMCP
+from fastmcp import FastMCP
 from tools.helpers import register_and_build_response
 
 logger = logging.getLogger("MCP_Server")

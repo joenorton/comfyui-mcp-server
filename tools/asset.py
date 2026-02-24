@@ -3,7 +3,8 @@
 import logging
 from typing import Optional
 
-from mcp.server.fastmcp import FastMCP, Image as FastMCPImage
+from fastmcp import FastMCP
+from fastmcp.utilities.types import Image as FastMCPImage
 from asset_processor import (
     encode_preview_for_mcp,
     estimate_response_chars,
