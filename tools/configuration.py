@@ -2,7 +2,7 @@
 
 from typing import Any, Dict, Optional
 
-from mcp.server.fastmcp import FastMCP
+from fastmcp import FastMCP
 
 
 def register_configuration_tools(

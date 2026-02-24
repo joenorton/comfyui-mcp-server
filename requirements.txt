@@ -1,6 +1,6 @@
 # Core dependencies
 requests>=2.31.0
-mcp>=0.9.0
+fastmcp
 
 # Image processing (required for view_image tool)
 Pillow>=10.0.0

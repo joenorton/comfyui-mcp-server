@@ -2,7 +2,7 @@
 import pytest
 from unittest.mock import Mock
 from tools.job import register_job_tools
-from mcp.server.fastmcp import FastMCP
+from fastmcp import FastMCP
 
 
 @pytest.fixture

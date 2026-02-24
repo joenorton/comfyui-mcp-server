@@ -4,7 +4,7 @@ import logging
 from pathlib import Path
 from typing import Optional
 
-from mcp.server.fastmcp import FastMCP
+from fastmcp import FastMCP
 
 from managers.publish_manager import (
     PublishManager,
