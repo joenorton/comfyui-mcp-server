@@ -1,6 +1,7 @@
 """Multi-backend ComfyUI pool with least-queue load balancing."""
 
 import logging
+import os
 from typing import Any, Dict, Optional, Sequence
 
 import requests
@@ -8,6 +9,8 @@ import requests
 from comfyui_client import ComfyUIClient
 
 logger = logging.getLogger("ComfyUIPool")
+
+MAX_FOREIGN_VRAM_GB = float(os.environ.get("POOL_MAX_FOREIGN_VRAM_GB", "4"))
 
 
 def parse_backends(urls_str: str) -> dict[str, str]:
@@ -71,6 +74,29 @@ class ComfyUIPool:
             logger.warning(f"Queue check failed for {client.base_url}: {e}")
         return 999  # treat unreachable as full
 
+    def _foreign_vram_gb(self, client: ComfyUIClient) -> float:
+        """VRAM held by some other process on this backend's GPU (GB).
+
+        Queries the foreign_vram custom_node endpoint, which uses pynvml to
+        compute (total VRAM used on the GPU) - (VRAM used by ComfyUI's own PID).
+        A value > MAX_FOREIGN_VRAM_GB means another process (e.g. llama.cpp) is
+        squatting on the GPU and routing a workflow here will likely OOM.
+        ComfyUI's own warm-loaded checkpoint is excluded so it does not
+        disqualify the backend.
+
+        Backends without the custom_node endpoint (e.g. older / external) return
+        0 → treated as usable. The pool falls back gracefully.
+        """
+        try:
+            r = requests.get(f"{client.base_url}/foreign_vram", timeout=2)
+            if r.status_code != 200:
+                return 0.0
+            data = r.json()
+            return data.get("foreign_vram_bytes", 0) / 1e9
+        except Exception as e:
+            logger.warning(f"foreign_vram check failed for {client.base_url}: {e}")
+            return 0.0  # unknown → treat as usable
+
     def _pick_client(self, backend: Optional[str] = None) -> ComfyUIClient:
         if backend:
             if backend in self.clients:
@@ -82,9 +108,20 @@ class ComfyUIPool:
                     logger.info(f"Routing to URL-matched backend: {name}")
                     return client
             logger.warning(f"Unknown backend {backend}, falling back to least-queue")
-        # Least-queue routing
+        # Filter out backends with foreign VRAM pressure (other process holding GPU)
+        eligible = []
+        for name, client in self.clients.items():
+            foreign = self._foreign_vram_gb(client)
+            if foreign >= MAX_FOREIGN_VRAM_GB:
+                logger.info(f"Skipping {name}: foreign VRAM {foreign:.1f}GB >= {MAX_FOREIGN_VRAM_GB}GB")
+            else:
+                eligible.append((name, client))
+        if not eligible:
+            logger.warning("All backends VRAM-tight; routing to least-queue anyway")
+            eligible = list(self.clients.items())
+        # Least-queue among eligible
         chosen_name, chosen_client = min(
-            self.clients.items(), key=lambda kv: self._queue_depth(kv[1])
+            eligible, key=lambda kv: self._queue_depth(kv[1])
         )
         logger.info(f"Least-queue routing to: {chosen_name}")
         return chosen_client
