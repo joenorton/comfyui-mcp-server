@@ -93,7 +93,7 @@
   },
   "9": {
     "inputs": {
-      "filename_prefix": "ComfyUI",
+      "filename_prefix": "%date:yyyy-MM-dd%-sdxl_t2i",
       "images": [
         "8",
         0

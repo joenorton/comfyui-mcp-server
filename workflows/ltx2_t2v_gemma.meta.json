@@ -1,0 +1,3 @@
+{
+  "description": "\u26a0 OOM on 24GB VRAM \u00b7 LTX-2 text-to-video with Gemma 12B prompt enhancer. Requires ~40GB (loads LTX-2 BF16 + FP8 + Gemma 12B simultaneously). Not usable on RTX 3090/4090. Param: prompt."
+}

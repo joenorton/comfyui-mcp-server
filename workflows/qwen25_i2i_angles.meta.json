@@ -1,0 +1,3 @@
+{
+  "description": "~8-10 min \u00b7 1024\u00d71024 \u00d7 8 images \u00b7 Generates 8 camera angles of a character (close-up, wide, 45\u00b0/90\u00b0 L/R, aerial, low angle) from one reference image. Params: prompt, image."
+}

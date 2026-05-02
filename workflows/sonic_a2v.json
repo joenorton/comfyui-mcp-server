@@ -1,0 +1,71 @@
+{
+  "16": {
+    "class_type": "ImageOnlyCheckpointLoader",
+    "inputs": {
+      "ckpt_name": "svd_xt_1_1.safetensors"
+    }
+  },
+  "14": {
+    "class_type": "SONICTLoader",
+    "inputs": {
+      "model": ["16", 0],
+      "sonic_unet": "unet.pth",
+      "ip_audio_scale": 1,
+      "use_interframe": true,
+      "dtype": "fp16"
+    }
+  },
+  "18": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "PARAM_IMAGE"
+    }
+  },
+  "19": {
+    "class_type": "LoadAudio",
+    "inputs": {
+      "audio": "PARAM_AUDIO"
+    }
+  },
+  "17": {
+    "class_type": "SONIC_PreData",
+    "inputs": {
+      "clip_vision": ["16", 1],
+      "vae": ["16", 2],
+      "audio": ["19", 0],
+      "image": ["18", 0],
+      "weight_dtype": ["14", 1],
+      "min_resolution": 256,
+      "duration": 3,
+      "expand_ratio": 0.5
+    }
+  },
+  "15": {
+    "class_type": "SONICSampler",
+    "inputs": {
+      "model": ["14", 0],
+      "data_dict": ["17", 0],
+      "seed": "PARAM_INT_SEED",
+      "inference_steps": 25,
+      "dynamic_scale": 1,
+      "fps": 25
+    }
+  },
+  "21": {
+    "class_type": "CreateVideo",
+    "inputs": {
+      "images": ["15", 0],
+      "audio": ["19", 0],
+      "fps": ["15", 1]
+    }
+  },
+  "20": {
+    "class_type": "SaveVideo",
+    "inputs": {
+      "video": ["21", 0],
+      "filename_prefix": "video/%date:yyyy-MM-dd%-sonic_a2v",
+      "format": "auto",
+      "codec": "auto"
+    }
+  }
+}

@@ -1,0 +1,494 @@
+{
+  "98": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "PARAM_IMAGE"
+    }
+  },
+  "102": {
+    "class_type": "ResizeImageMaskNode",
+    "inputs": {
+      "input": [
+        "98",
+        0
+      ],
+      "resize_type": "scale dimensions",
+      "scale_method": "lanczos",
+      "resize_type.width": 1280,
+      "resize_type.height": 720,
+      "resize_type.crop": "center"
+    }
+  },
+  "75": {
+    "class_type": "SaveVideo",
+    "inputs": {
+      "video": [
+        "92_97",
+        0
+      ],
+      "filename_prefix": "video/%date:yyyy-MM-dd%-ltx2_i2v",
+      "format": "auto",
+      "codec": "auto"
+    }
+  },
+  "92_8": {
+    "class_type": "KSamplerSelect",
+    "inputs": {
+      "sampler_name": "euler"
+    }
+  },
+  "92_9": {
+    "class_type": "LTXVScheduler",
+    "inputs": {
+      "steps": 20,
+      "max_shift": 2.05,
+      "base_shift": 0.95,
+      "stretch": true,
+      "terminal": 0.1,
+      "latent": [
+        "92_56",
+        0
+      ]
+    }
+  },
+  "92_60": {
+    "class_type": "LTXAVTextEncoderLoader",
+    "inputs": {
+      "text_encoder": "gemma_3_12B_it_fp4_mixed.safetensors",
+      "ckpt_name": "ltx-2-19b-dev-fp8.safetensors",
+      "device": "default"
+    }
+  },
+  "92_66": {
+    "class_type": "KSamplerSelect",
+    "inputs": {
+      "sampler_name": "gradient_estimation"
+    }
+  },
+  "92_73": {
+    "class_type": "ManualSigmas",
+    "inputs": {
+      "sigmas": "0.909375, 0.725, 0.421875, 0.0"
+    }
+  },
+  "92_76": {
+    "class_type": "LatentUpscaleModelLoader",
+    "inputs": {
+      "model_name": "ltx-2-spatial-upscaler-x2-1.0.safetensors"
+    }
+  },
+  "92_81": {
+    "class_type": "LTXVCropGuides",
+    "inputs": {
+      "positive": [
+        "92_22",
+        0
+      ],
+      "negative": [
+        "92_22",
+        1
+      ],
+      "latent": [
+        "92_80",
+        0
+      ]
+    }
+  },
+  "92_82": {
+    "class_type": "CFGGuider",
+    "inputs": {
+      "model": [
+        "92_68",
+        0
+      ],
+      "positive": [
+        "92_81",
+        0
+      ],
+      "negative": [
+        "92_81",
+        1
+      ],
+      "cfg": 1
+    }
+  },
+  "92_51": {
+    "class_type": "LTXVEmptyLatentAudio",
+    "inputs": {
+      "frames_number": [
+        "92_62",
+        0
+      ],
+      "frame_rate": 97,
+      "batch_size": 1,
+      "audio_vae": [
+        "92_48",
+        0
+      ]
+    }
+  },
+  "92_22": {
+    "class_type": "LTXVConditioning",
+    "inputs": {
+      "positive": [
+        "92_3",
+        0
+      ],
+      "negative": [
+        "92_4",
+        0
+      ],
+      "frame_rate": 25
+    }
+  },
+  "92_4": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "PARAM_NEGATIVE_PROMPT",
+      "clip": [
+        "92_60",
+        0
+      ]
+    }
+  },
+  "92_89": {
+    "class_type": "EmptyImage",
+    "inputs": {
+      "width": [
+        "92_105",
+        0
+      ],
+      "height": [
+        "92_105",
+        1
+      ],
+      "batch_size": 1,
+      "color": 0
+    }
+  },
+  "92_41": {
+    "class_type": "SamplerCustomAdvanced",
+    "inputs": {
+      "noise": [
+        "92_11",
+        0
+      ],
+      "guider": [
+        "92_47",
+        0
+      ],
+      "sampler": [
+        "92_8",
+        0
+      ],
+      "sigmas": [
+        "92_9",
+        0
+      ],
+      "latent_image": [
+        "92_56",
+        0
+      ]
+    }
+  },
+  "92_67": {
+    "class_type": "RandomNoise",
+    "inputs": {
+      "noise_seed": "PARAM_INT_SEED"
+    }
+  },
+  "92_11": {
+    "class_type": "RandomNoise",
+    "inputs": {
+      "noise_seed": "PARAM_INT_SEED"
+    }
+  },
+  "92_3": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "PARAM_PROMPT",
+      "clip": [
+        "92_60",
+        0
+      ]
+    }
+  },
+  "92_97": {
+    "class_type": "CreateVideo",
+    "inputs": {
+      "images": [
+        "92_95",
+        0
+      ],
+      "fps": 25,
+      "audio": [
+        "92_96",
+        0
+      ]
+    }
+  },
+  "92_80": {
+    "class_type": "LTXVSeparateAVLatent",
+    "inputs": {
+      "av_latent": [
+        "92_41",
+        0
+      ]
+    }
+  },
+  "92_95": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "92_94",
+        0
+      ],
+      "vae": [
+        "92_1",
+        2
+      ]
+    }
+  },
+  "92_94": {
+    "class_type": "LTXVSeparateAVLatent",
+    "inputs": {
+      "av_latent": [
+        "92_70",
+        1
+      ]
+    }
+  },
+  "92_70": {
+    "class_type": "SamplerCustomAdvanced",
+    "inputs": {
+      "noise": [
+        "92_67",
+        0
+      ],
+      "guider": [
+        "92_82",
+        0
+      ],
+      "sampler": [
+        "92_66",
+        0
+      ],
+      "sigmas": [
+        "92_73",
+        0
+      ],
+      "latent_image": [
+        "92_83",
+        0
+      ]
+    }
+  },
+  "92_96": {
+    "class_type": "LTXVAudioVAEDecode",
+    "inputs": {
+      "samples": [
+        "92_94",
+        1
+      ],
+      "audio_vae": [
+        "92_48",
+        0
+      ]
+    }
+  },
+  "92_48": {
+    "class_type": "LTXVAudioVAELoader",
+    "inputs": {
+      "ckpt_name": "ltx-2-19b-dev-fp8.safetensors"
+    }
+  },
+  "92_56": {
+    "class_type": "LTXVConcatAVLatent",
+    "inputs": {
+      "video_latent": [
+        "92_107",
+        0
+      ],
+      "audio_latent": [
+        "92_51",
+        0
+      ]
+    }
+  },
+  "92_84": {
+    "class_type": "LTXVLatentUpsampler",
+    "inputs": {
+      "samples": [
+        "92_81",
+        2
+      ],
+      "upscale_model": [
+        "92_76",
+        0
+      ],
+      "vae": [
+        "92_1",
+        2
+      ]
+    }
+  },
+  "92_90": {
+    "class_type": "ImageScaleBy",
+    "inputs": {
+      "image": [
+        "92_89",
+        0
+      ],
+      "upscale_method": "lanczos",
+      "scale_by": 0.5
+    }
+  },
+  "92_62": {
+    "class_type": "PrimitiveInt",
+    "inputs": {
+      "value": 121
+    }
+  },
+  "92_91": {
+    "class_type": "GetImageSize",
+    "inputs": {
+      "image": [
+        "92_90",
+        0
+      ]
+    }
+  },
+  "92_105": {
+    "class_type": "GetImageSize",
+    "inputs": {
+      "image": [
+        "102",
+        0
+      ]
+    }
+  },
+  "92_99": {
+    "class_type": "LTXVPreprocess",
+    "inputs": {
+      "image": [
+        "92_106",
+        0
+      ],
+      "img_compression": 33
+    }
+  },
+  "92_43": {
+    "class_type": "EmptyLTXVLatentVideo",
+    "inputs": {
+      "width": [
+        "92_91",
+        0
+      ],
+      "height": [
+        "92_91",
+        1
+      ],
+      "length": [
+        "92_62",
+        0
+      ],
+      "batch_size": 1
+    }
+  },
+  "92_107": {
+    "class_type": "LTXVImgToVideoInplace",
+    "inputs": {
+      "vae": [
+        "92_1",
+        2
+      ],
+      "image": [
+        "92_99",
+        0
+      ],
+      "latent": [
+        "92_43",
+        0
+      ],
+      "strength": 1,
+      "bypass": false
+    }
+  },
+  "92_83": {
+    "class_type": "LTXVConcatAVLatent",
+    "inputs": {
+      "video_latent": [
+        "92_108",
+        0
+      ],
+      "audio_latent": [
+        "92_80",
+        1
+      ]
+    }
+  },
+  "92_108": {
+    "class_type": "LTXVImgToVideoInplace",
+    "inputs": {
+      "vae": [
+        "92_1",
+        2
+      ],
+      "image": [
+        "92_99",
+        0
+      ],
+      "latent": [
+        "92_84",
+        0
+      ],
+      "strength": 1,
+      "bypass": false
+    }
+  },
+  "92_47": {
+    "class_type": "CFGGuider",
+    "inputs": {
+      "model": [
+        "92_1",
+        0
+      ],
+      "positive": [
+        "92_22",
+        0
+      ],
+      "negative": [
+        "92_22",
+        1
+      ],
+      "cfg": 4
+    }
+  },
+  "92_68": {
+    "class_type": "LoraLoaderModelOnly",
+    "inputs": {
+      "model": [
+        "92_1",
+        0
+      ],
+      "lora_name": "ltx-2-19b-distilled-lora-384.safetensors",
+      "strength_model": 1
+    }
+  },
+  "92_106": {
+    "class_type": "ResizeImagesByLongerEdge",
+    "inputs": {
+      "images": [
+        "102",
+        0
+      ],
+      "longer_edge": 1536
+    }
+  },
+  "92_1": {
+    "class_type": "CheckpointLoaderSimple",
+    "inputs": {
+      "ckpt_name": "ltx-2-19b-dev-fp8.safetensors"
+    }
+  }
+}

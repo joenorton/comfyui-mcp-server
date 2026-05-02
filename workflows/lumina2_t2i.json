@@ -1,0 +1,110 @@
+{
+  "9": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "57_8",
+        0
+      ],
+      "filename_prefix": "lumina2_t2i"
+    }
+  },
+  "57_30": {
+    "class_type": "CLIPLoader",
+    "inputs": {
+      "clip_name": "qwen_3_4b.safetensors",
+      "type": "lumina2",
+      "device": "default"
+    }
+  },
+  "57_29": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "ae.safetensors"
+    }
+  },
+  "57_33": {
+    "class_type": "ConditioningZeroOut",
+    "inputs": {
+      "conditioning": [
+        "57_27",
+        0
+      ]
+    }
+  },
+  "57_8": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "57_3",
+        0
+      ],
+      "vae": [
+        "57_29",
+        0
+      ]
+    }
+  },
+  "57_28": {
+    "class_type": "UNETLoader",
+    "inputs": {
+      "unet_name": "z_image_turbo_bf16.safetensors",
+      "weight_dtype": "default"
+    }
+  },
+  "57_27": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "clip": [
+        "57_30",
+        0
+      ],
+      "text": "PARAM_PROMPT"
+    }
+  },
+  "57_13": {
+    "class_type": "EmptySD3LatentImage",
+    "inputs": {
+      "width": 1024,
+      "height": 1024,
+      "batch_size": 1
+    }
+  },
+  "57_11": {
+    "class_type": "ModelSamplingAuraFlow",
+    "inputs": {
+      "model": [
+        "57_28",
+        0
+      ],
+      "shift": 3
+    }
+  },
+  "57_3": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": [
+        "57_11",
+        0
+      ],
+      "positive": [
+        "57_27",
+        0
+      ],
+      "negative": [
+        "57_33",
+        0
+      ],
+      "latent_image": [
+        "57_13",
+        0
+      ],
+      "seed": "PARAM_INT_SEED",
+      "steps": 8,
+      "cfg": 1,
+      "sampler_name": "res_multistep",
+      "scheduler": "simple",
+      "denoise": 1
+    }
+  }
+}

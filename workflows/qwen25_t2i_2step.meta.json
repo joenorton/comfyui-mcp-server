@@ -1,0 +1,3 @@
+{
+  "description": "~30s (hot) / ~2 min (cold) \u00b7 1024\u00d71024 \u00b7 Qwen 2.5 2-step LoRA variant; faster with same quality level when Qwen model already loaded. Param: prompt."
+}

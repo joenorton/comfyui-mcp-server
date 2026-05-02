@@ -246,6 +246,33 @@ class WorkflowManager:
                             if node_id in workflow and "inputs" in workflow[node_id]:
                                 workflow[node_id]["inputs"][input_name] = default_value
 
+        # Substitute %date:...% patterns in filename_prefix fields
+        import re as _re
+        from datetime import date as _date
+        _today = _date.today().strftime('%Y-%m-%d')
+        for _node in workflow.values():
+            if not isinstance(_node, dict):
+                continue
+            _inp = _node.get('inputs', {})
+            if 'filename_prefix' in _inp and isinstance(_inp['filename_prefix'], str):
+                _inp['filename_prefix'] = _re.sub(r'%date:[^%]+%', _today, _inp['filename_prefix'])
+
+        # Replace any PARAM_* placeholders not covered by overrides/defaults
+        for node in workflow.values():
+            if not isinstance(node, dict):
+                continue
+            for input_name, val in list(node.get("inputs", {}).items()):
+                if not isinstance(val, str) or not val.startswith("PARAM_"):
+                    continue
+                upper = val.upper()
+                if "SEED" in upper or ("INT" in upper and "SEED" in upper):
+                    node["inputs"][input_name] = random.randint(0, 2**31 - 1)
+                elif upper.startswith("PARAM_INT_"):
+                    node["inputs"][input_name] = 0
+                elif upper.startswith("PARAM_FLOAT_"):
+                    node["inputs"][input_name] = 1.0
+                # PARAM_PROMPT, PARAM_IMAGE etc. left as-is — required, will error properly
+
         # Store the report on the workflow dict so callers can access it
         # (using a private key that won't conflict with node IDs which are numeric strings)
         workflow["__override_report__"] = {
@@ -289,6 +316,8 @@ class WorkflowManager:
             return definitions
 
         for workflow_path in sorted(self.workflows_dir.glob("*.json")):
+            if workflow_path.name.endswith(".meta.json"):
+                continue
             try:
                 with open(workflow_path, "r", encoding="utf-8") as handle:
                     workflow = json.load(handle)
@@ -309,7 +338,7 @@ class WorkflowManager:
             definition = WorkflowToolDefinition(
                 workflow_id=workflow_path.stem,
                 tool_name=tool_name,
-                description=self._derive_description(workflow_path.stem),
+                description=self._load_workflow_metadata(workflow_path).get("description") or self._derive_description(workflow_path.stem),
                 template=workflow,
                 parameters=parameters,
                 output_preferences=self._guess_output_preferences(workflow),
@@ -349,7 +378,7 @@ class WorkflowManager:
             if raw_value is None:
                 if param.name == "seed" and param.annotation is int:
                     # Special handling for seed - generate random
-                    raw_value = random.randint(0, 2**32 - 1)
+                    raw_value = random.randint(0, 2**31 - 1)
                     logger.debug(f"Generated random seed: {raw_value}")
                 elif defaults_manager:
                     # Use defaults manager to get value with proper precedence
@@ -367,6 +396,18 @@ class WorkflowManager:
             for node_id, input_name in param.bindings:
                 workflow[node_id]["inputs"][input_name] = coerced_value
         
+
+        # Substitute %date:...% patterns in filename_prefix fields
+        import re as _re
+        from datetime import date as _date
+        _today = _date.today().strftime('%Y-%m-%d')
+        for _node in workflow.values():
+            if not isinstance(_node, dict):
+                continue
+            _inp = _node.get('inputs', {})
+            if 'filename_prefix' in _inp and isinstance(_inp['filename_prefix'], str):
+                _inp['filename_prefix'] = _re.sub(r'%date:[^%]+%', _today, _inp['filename_prefix'])
+
         return workflow
 
     def _extract_parameters(self, workflow: Dict[str, Any]):
@@ -451,12 +492,15 @@ class WorkflowManager:
 
     def _determine_namespace(self, workflow_id: str) -> str:
         """Determine namespace based on workflow ID."""
-        if workflow_id == "generate_song":
+        wid = workflow_id.lower()
+        audio_patterns = ("_t2a", "_i2a", "song", "audio")
+        video_patterns = ("_t2v", "_i2v", "_d2v", "_fl2v", "_vid", "video")
+        if any(p in wid for p in audio_patterns):
             return "audio"
-        elif workflow_id == "generate_video":
+        elif any(p in wid for p in video_patterns):
             return "video"
         else:
-            return "image"  # default fallback
+            return "image"
     
     def _guess_output_preferences(self, workflow: Dict[str, Any]):
         for node in workflow.values():
