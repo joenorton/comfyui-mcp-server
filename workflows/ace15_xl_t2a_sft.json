@@ -116,7 +116,7 @@
         "18",
         0
       ],
-      "filename_prefix": "audio/shift6",
+      "filename_prefix": "%date:yyyy-MM-dd%-ace15_xl_t2a_sft",
       "quality": "V0"
     }
   },

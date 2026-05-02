@@ -126,7 +126,7 @@
         "18",
         0
       ],
-      "filename_prefix": "audio/ACE_Step1.5_xl_turbo",
+      "filename_prefix": "%date:yyyy-MM-dd%-ace15_xl_t2a_turbo",
       "quality": "V0"
     }
   }

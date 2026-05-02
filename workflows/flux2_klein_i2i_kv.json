@@ -114,7 +114,7 @@
         "124",
         0
       ],
-      "filename_prefix": "Flux2_Klein_9b_kv"
+      "filename_prefix": "%date:yyyy-MM-dd%-flux2_klein_i2i_kv"
     }
   },
   "685": {

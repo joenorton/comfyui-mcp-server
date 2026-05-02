@@ -13,7 +13,7 @@
         "129_122",
         0
       ],
-      "filename_prefix": "video/ltx2.3_flf2v",
+      "filename_prefix": "video/%date:yyyy-MM-dd%-ltx23_fl2v",
       "format": "auto",
       "codec": "auto"
     }

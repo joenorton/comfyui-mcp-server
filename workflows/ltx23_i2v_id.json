@@ -13,7 +13,7 @@
         "340_312",
         0
       ],
-      "filename_prefix": "video/LTX_2.3_id_lora",
+      "filename_prefix": "video/%date:yyyy-MM-dd%-ltx23_i2v_id",
       "format": "auto",
       "codec": "auto"
     }

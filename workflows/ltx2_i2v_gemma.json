@@ -47,7 +47,7 @@
         "5190",
         0
       ],
-      "filename_prefix": "video/LTX-2"
+      "filename_prefix": "video/%date:yyyy-MM-dd%-ltx2_i2v_gemma"
     }
   },
   "5184": {

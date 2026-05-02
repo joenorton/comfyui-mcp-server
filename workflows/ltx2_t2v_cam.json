@@ -90,7 +90,7 @@
         "5229",
         0
       ],
-      "filename_prefix": "video/LTX-2"
+      "filename_prefix": "video/%date:yyyy-MM-dd%-ltx2_t2v_cam"
     }
   },
   "5244": {

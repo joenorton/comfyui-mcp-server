@@ -56,7 +56,7 @@
         "9",
         0
       ],
-      "filename_prefix": "mesh/ComfyUI",
+      "filename_prefix": "%date:yyyy-MM-dd%-hunyuan3d_i2mesh",
       "image": ""
     }
   },

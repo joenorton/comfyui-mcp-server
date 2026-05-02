@@ -90,7 +90,7 @@
         "18",
         0
       ],
-      "filename_prefix": "audio/ace_step1.5_xl_base",
+      "filename_prefix": "%date:yyyy-MM-dd%-ace15_xl_t2a_base",
       "quality": "V0"
     }
   },

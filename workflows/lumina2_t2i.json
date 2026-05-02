@@ -6,7 +6,7 @@
         "57_8",
         0
       ],
-      "filename_prefix": "lumina2_t2i"
+      "filename_prefix": "%date:yyyy-MM-dd%-lumina2_t2i"
     }
   },
   "57_30": {

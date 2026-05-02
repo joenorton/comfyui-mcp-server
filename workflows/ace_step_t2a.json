@@ -1,7 +1,7 @@
 {
   "59": {
     "inputs": {
-      "filename_prefix": "audio/%date:yyyy-MM-dd%-ace_step_t2a",
+      "filename_prefix": "%date:yyyy-MM-dd%-ace_step_t2a",
       "quality": "V0",
       "audioUI": "",
       "audio": [

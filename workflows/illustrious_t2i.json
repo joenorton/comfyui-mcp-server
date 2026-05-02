@@ -8,7 +8,10 @@
   "2": {
     "class_type": "CLIPSetLastLayer",
     "inputs": {
-      "clip": ["1", 1],
+      "clip": [
+        "1",
+        1
+      ],
       "stop_at_clip_layer": -2
     }
   },
@@ -16,14 +19,20 @@
     "class_type": "CLIPTextEncode",
     "inputs": {
       "text": "PARAM_PROMPT",
-      "clip": ["2", 0]
+      "clip": [
+        "2",
+        0
+      ]
     }
   },
   "4": {
     "class_type": "CLIPTextEncode",
     "inputs": {
       "text": "PARAM_NEGATIVE_PROMPT",
-      "clip": ["2", 0]
+      "clip": [
+        "2",
+        0
+      ]
     }
   },
   "5": {
@@ -37,10 +46,22 @@
   "6": {
     "class_type": "KSampler",
     "inputs": {
-      "model": ["1", 0],
-      "positive": ["3", 0],
-      "negative": ["4", 0],
-      "latent_image": ["5", 0],
+      "model": [
+        "1",
+        0
+      ],
+      "positive": [
+        "3",
+        0
+      ],
+      "negative": [
+        "4",
+        0
+      ],
+      "latent_image": [
+        "5",
+        0
+      ],
       "seed": "PARAM_INT_SEED",
       "steps": 27,
       "cfg": 5.0,
@@ -52,15 +73,24 @@
   "7": {
     "class_type": "VAEDecode",
     "inputs": {
-      "samples": ["6", 0],
-      "vae": ["1", 2]
+      "samples": [
+        "6",
+        0
+      ],
+      "vae": [
+        "1",
+        2
+      ]
     }
   },
   "8": {
     "class_type": "SaveImage",
     "inputs": {
-      "images": ["7", 0],
-      "filename_prefix": "illustrious_t2i"
+      "images": [
+        "7",
+        0
+      ],
+      "filename_prefix": "%date:yyyy-MM-dd%-illustrious_t2i"
     }
   }
 }

@@ -32,7 +32,7 @@
         "82",
         0
       ],
-      "filename_prefix": "mesh/Hunyuan3D 2.0 MV",
+      "filename_prefix": "%date:yyyy-MM-dd%-hunyuan3d_t2mv",
       "image": ""
     }
   },

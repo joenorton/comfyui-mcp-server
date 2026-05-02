@@ -49,7 +49,7 @@
         "65_44_125",
         0
       ],
-      "filename_prefix": "ComfyUI-low_angle"
+      "filename_prefix": "%date:yyyy-MM-dd%-qwen25_i2i_angles"
     }
   },
   "47": {
@@ -59,7 +59,7 @@
         "65_40_107",
         0
       ],
-      "filename_prefix": "ComfyUI-90_left"
+      "filename_prefix": "%date:yyyy-MM-dd%-qwen25_i2i_angles"
     }
   },
   "45": {
@@ -69,7 +69,7 @@
         "65_46_134",
         0
       ],
-      "filename_prefix": "ComfyUI-45_left"
+      "filename_prefix": "%date:yyyy-MM-dd%-qwen25_i2i_angles"
     }
   },
   "41": {
@@ -79,7 +79,7 @@
         "65_42_116",
         0
       ],
-      "filename_prefix": "ComfyUI-aerial_view"
+      "filename_prefix": "%date:yyyy-MM-dd%-qwen25_i2i_angles"
     }
   },
   "31": {
@@ -89,7 +89,7 @@
         "65_33_19",
         0
       ],
-      "filename_prefix": "ComfyUI-close_up"
+      "filename_prefix": "%date:yyyy-MM-dd%-qwen25_i2i_angles"
     }
   },
   "34": {
@@ -99,7 +99,7 @@
         "65_35_80",
         0
       ],
-      "filename_prefix": "ComfyUI-wide_shot"
+      "filename_prefix": "%date:yyyy-MM-dd%-qwen25_i2i_angles"
     }
   },
   "36": {
@@ -109,7 +109,7 @@
         "65_37_89",
         0
       ],
-      "filename_prefix": "ComfyUI-45_right"
+      "filename_prefix": "%date:yyyy-MM-dd%-qwen25_i2i_angles"
     }
   },
   "38": {
@@ -119,7 +119,7 @@
         "65_39_98",
         0
       ],
-      "filename_prefix": "ComfyUI-90_right"
+      "filename_prefix": "%date:yyyy-MM-dd%-qwen25_i2i_angles"
     }
   },
   "25": {
