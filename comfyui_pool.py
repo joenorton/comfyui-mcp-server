@@ -49,9 +49,10 @@ class ComfyUIPool:
         result = []
         for client in self.clients.values():
             for m in client.available_models:
-                if m not in seen:
-                    seen.add(m)
-                    result.append(m)
+                normalized = m.replace("\\", "/")
+                if normalized not in seen:
+                    seen.add(normalized)
+                    result.append(normalized)
         return result
 
     def refresh_models(self):
@@ -96,8 +97,11 @@ class ComfyUIPool:
         max_attempts: int = 30,
     ) -> Dict[str, Any]:
         client = self._pick_client(backend)
-        return client.run_custom_workflow(
+        result = client.run_custom_workflow(
             workflow,
             preferred_output_keys=preferred_output_keys,
             max_attempts=max_attempts,
         )
+        if isinstance(result, dict) and result.get("status") != "running":
+            result["backend_url"] = client.base_url
+        return result

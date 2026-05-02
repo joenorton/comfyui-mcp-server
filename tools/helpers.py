@@ -59,7 +59,9 @@ def register_and_build_response(
     )
     
     # Build response data
-    # Use asset_record.asset_url (computed from stable identity)
+    # Use backend_url from pool result if available, so URLs point to the actual backend
+    backend_url = result.get("backend_url", asset_registry.comfyui_base_url)
+    asset_record.set_base_url(backend_url)
     asset_url = asset_record.asset_url or result.get("asset_url", "")
     response_data = {
         "asset_id": asset_record.asset_id,

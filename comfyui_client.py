@@ -47,6 +47,7 @@ class ComfyUIClient:
                     return []
                 models = ckpt_name_info[0] if isinstance(ckpt_name_info[0], list) else ckpt_name_info
                 logger.info(f"Available models: {models}")
+                logger.info(f"Available models: {models}")
                 return models
             except (KeyError, IndexError, TypeError) as e:
                 logger.warning(f"Unexpected API response structure: {e}")
@@ -60,6 +61,7 @@ class ComfyUIClient:
             preferred_output_keys = ("images", "image", "gifs", "gif", "audio", "audios", "files")
 
         workflow = self._resolve_image_urls_in_workflow(workflow)
+        workflow = self._resolve_model_names_in_workflow(workflow)
         prompt_id = self._queue_workflow(workflow)
         outputs = self._wait_for_prompt(prompt_id, max_attempts=max_attempts)
 
@@ -545,6 +547,24 @@ class ComfyUIClient:
         uploaded_name = data.get("name", fname)
         logger.info(f"Uploaded audio as: {uploaded_name}")
         return uploaded_name
+
+    def _resolve_model_names_in_workflow(self, workflow: dict) -> dict:
+        # Resolve model names to backend-native path separators (/ vs \\)
+        if not self.available_models:
+            return workflow
+        import copy
+        norm_map = {m.replace("\\", "/"): m for m in self.available_models}
+        def resolve(v):
+            if isinstance(v, str) and ("/" in v or "\\" in v):
+                return norm_map.get(v.replace("\\", "/"), v)
+            return v
+        workflow = copy.deepcopy(workflow)
+        for node in workflow.values():
+            if isinstance(node, dict):
+                inputs = node.get("inputs", {})
+                for k in list(inputs):
+                    inputs[k] = resolve(inputs[k])
+        return workflow
 
     def _resolve_image_urls_in_workflow(self, workflow: dict) -> dict:
         """For any LoadImage/LoadAudio node with a URL input, upload and replace with filename."""
