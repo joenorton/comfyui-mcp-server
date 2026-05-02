@@ -25,8 +25,9 @@ def register_workflow_generation_tools(
     
     def _register_workflow_tool(definition: WorkflowToolDefinition):
         def _tool_impl(*args, **kwargs):
-            # Extract return_inline_preview if present (not a workflow parameter)
+            # Extract return_inline_preview and backend — not workflow parameters
             return_inline_preview = kwargs.pop("return_inline_preview", False)
+            backend = kwargs.pop("backend", None)
             # Session tracking can be added via request context in the future
             session_id = None
             
@@ -104,6 +105,7 @@ def register_workflow_generation_tools(
                 workflow = workflow_manager.render_workflow(definition, dict(bound.arguments), defaults_manager)
                 result = comfyui_client.run_custom_workflow(
                     workflow,
+                    backend=backend,
                     preferred_output_keys=definition.output_preferences,
                 )
                 
@@ -190,6 +192,14 @@ def register_workflow_generation_tools(
             default=False,
         ))
         annotations["return_inline_preview"] = bool
+        # Backend selection
+        optional_params.append(inspect.Parameter(
+            name="backend",
+            kind=inspect.Parameter.POSITIONAL_OR_KEYWORD,
+            annotation=Optional[str],
+            default=None,
+        ))
+        annotations["backend"] = Optional[str]
         
         # Combine: required parameters first, then optional
         parameters = required_params + optional_params

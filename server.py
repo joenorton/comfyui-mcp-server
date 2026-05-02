@@ -13,6 +13,7 @@ import requests
 from mcp.server.fastmcp import FastMCP
 
 from comfyui_client import ComfyUIClient
+from comfyui_pool import ComfyUIPool, parse_backends
 from managers.asset_registry import AssetRegistry
 from managers.defaults_manager import DefaultsManager
 from managers.publish_manager import PublishConfig, PublishManager
@@ -36,6 +37,7 @@ ASSET_TTL_HOURS = int(os.getenv("COMFY_MCP_ASSET_TTL_HOURS", "24"))
 
 # ComfyUI connection configuration
 COMFYUI_URL = os.getenv("COMFYUI_URL", "http://localhost:8188")
+COMFYUI_URLS = os.getenv("COMFYUI_URLS", "")
 COMFYUI_MAX_RETRIES = 5  # Number of retry attempts
 COMFYUI_INITIAL_DELAY = 2  # Initial delay in seconds
 COMFYUI_MAX_DELAY = 16  # Maximum delay in seconds
@@ -119,19 +121,28 @@ def wait_for_comfyui(base_url: str, max_retries: int = COMFYUI_MAX_RETRIES,
 # Print startup banner
 print_startup_banner()
 
+# Determine primary URL for startup check
+_check_url = COMFYUI_URL
+if COMFYUI_URLS:
+    from comfyui_pool import parse_backends as _parse_backends
+    _check_url = next(iter(_parse_backends(COMFYUI_URLS).values()))
+
 # Check ComfyUI availability before initializing clients
-if not check_comfyui_available(COMFYUI_URL):
-    if not wait_for_comfyui(COMFYUI_URL):
+if not check_comfyui_available(_check_url):
+    if not wait_for_comfyui(_check_url):
         print("\n" + "=" * 70)
         print("[X] ERROR: ComfyUI is not available after all retry attempts!")
         print("=" * 70)
-        print(f"  Please ensure ComfyUI is running at: {COMFYUI_URL}")
+        print(f"  Please ensure ComfyUI is running at: {_check_url}")
         print("  Start ComfyUI first, then restart this server.")
         print("=" * 70 + "\n")
         sys.exit(1)
 
-# Global ComfyUI client (fallback since context isn't available)
-comfyui_client = ComfyUIClient(COMFYUI_URL)
+# Global ComfyUI client — pool if COMFYUI_URLS set, single client otherwise
+if COMFYUI_URLS:
+    comfyui_client = ComfyUIPool(parse_backends(COMFYUI_URLS))
+else:
+    comfyui_client = ComfyUIClient(COMFYUI_URL)
 workflow_manager = WorkflowManager(WORKFLOW_DIR)
 defaults_manager = DefaultsManager(comfyui_client)
 asset_registry = AssetRegistry(ttl_hours=ASSET_TTL_HOURS, comfyui_base_url=COMFYUI_URL)
