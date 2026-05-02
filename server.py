@@ -24,6 +24,7 @@ from tools.generation import register_workflow_generation_tools, register_regene
 from tools.job import register_job_tools
 from tools.publish import register_publish_tools
 from tools.workflow import register_workflow_tools
+from tools.upload import register_upload_tools
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -209,6 +210,7 @@ register_asset_tools(mcp, asset_registry)
 register_workflow_generation_tools(mcp, workflow_manager, comfyui_client, defaults_manager, asset_registry)
 register_regenerate_tool(mcp, comfyui_client, asset_registry)
 register_job_tools(mcp, comfyui_client, asset_registry)
+register_upload_tools(mcp, comfyui_client)
 # Always register publish tools (unconditional)
 if publish_manager:
     register_publish_tools(mcp, asset_registry, publish_manager)
