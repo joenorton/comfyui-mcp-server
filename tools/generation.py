@@ -7,7 +7,7 @@ import random
 from typing import Any, Dict, Optional
 
 from mcp.server.fastmcp import FastMCP
-from managers.workflow_manager import AUDIO_OUTPUT_KEYS, VIDEO_OUTPUT_KEYS
+from managers.workflow_manager import AUDIO_OUTPUT_KEYS, VIDEO_OUTPUT_KEYS, MESH_OUTPUT_KEYS
 from models.workflow import WorkflowToolDefinition
 from tools.helpers import register_and_build_response
 

@@ -43,6 +43,7 @@ PLACEHOLDER_DESCRIPTIONS = {
 DEFAULT_OUTPUT_KEYS = ("images", "image", "gifs", "gif")
 AUDIO_OUTPUT_KEYS = ("audio", "audios", "sound", "files")
 VIDEO_OUTPUT_KEYS = ("videos", "video", "mp4", "mov", "webm")
+MESH_OUTPUT_KEYS = ("3d", "mesh", "glb", "gltf", "obj")
 
 
 
@@ -657,6 +658,8 @@ class WorkflowManager:
                 return AUDIO_OUTPUT_KEYS
             if "video" in class_type or "savevideo" in class_type or "videocombine" in class_type:
                 return VIDEO_OUTPUT_KEYS
+            if "mesh" in class_type or "3d" in class_type or "hy3d" in class_type or "hunyuan3d" in class_type:
+                return MESH_OUTPUT_KEYS
         return DEFAULT_OUTPUT_KEYS
 
     def _coerce_value(self, value: Any, annotation: type):
