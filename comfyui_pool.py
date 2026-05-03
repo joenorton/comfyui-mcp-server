@@ -142,3 +142,60 @@ class ComfyUIPool:
         if isinstance(result, dict) and result.get("status") != "running":
             result["backend_url"] = client.base_url
         return result
+
+    def get_queue(self) -> Dict[str, Any]:
+        """Aggregate /queue across all backends.
+
+        ComfyUI's /queue returns {queue_running: [...], queue_pending: [...]} per
+        instance. Each entry is [priority, prompt_id, prompt_dict, ...]. We return
+        a merged shape so callers see one queue across the pool.
+        """
+        running = []
+        pending = []
+        for name, client in self.clients.items():
+            try:
+                q = client.get_queue()
+                for item in q.get('queue_running', []):
+                    running.append({'backend': name, 'item': item})
+                for item in q.get('queue_pending', []):
+                    pending.append({'backend': name, 'item': item})
+            except Exception as e:
+                logger.warning(f'get_queue failed for {client.base_url}: {e}')
+        return {'queue_running': running, 'queue_pending': pending}
+
+    def get_history(self, prompt_id: Optional[str] = None) -> Dict[str, Any]:
+        """Look up a prompt_id across all backends; return first match.
+
+        ComfyUI history is per-instance and in-memory. The pool doesn't track
+        which backend ran a given prompt_id, so we fan out and return whichever
+        instance has it. If prompt_id is None, returns merged history (rarely useful).
+        """
+        if prompt_id:
+            for name, client in self.clients.items():
+                try:
+                    h = client.get_history(prompt_id)
+                    if h:
+                        return h
+                except Exception as e:
+                    logger.warning(f'get_history({prompt_id}) failed on {client.base_url}: {e}')
+            return {}
+        merged = {}
+        for client in self.clients.values():
+            try:
+                merged.update(client.get_history())
+            except Exception:
+                pass
+        return merged
+
+    def cancel_prompt(self, prompt_id: str) -> Dict[str, Any]:
+        """Cancel by fanning out — only the backend running the prompt will succeed."""
+        last_err = None
+        for name, client in self.clients.items():
+            try:
+                return client.cancel_prompt(prompt_id)
+            except Exception as e:
+                last_err = e
+        if last_err:
+            raise Exception(f'cancel_prompt({prompt_id}) failed across pool: {last_err}')
+        return {}
+
