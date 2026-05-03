@@ -8,6 +8,28 @@ from asset_processor import encode_preview_for_mcp, fetch_asset_bytes, get_cache
 logger = logging.getLogger("MCP_Server")
 
 
+
+def _format_markdown_preview(asset_url: str, mime_type: Optional[str], filename: str) -> str:
+    """Build a Markdown snippet the LLM can paste verbatim into its reply.
+
+    Image MIMEs → `![alt](url)` which Claude Desktop renders as an inline image.
+    Audio / video / other → labelled link with an emoji hint (Claude Desktop
+    won't inline-render audio/video, so a clickable link is the realistic best).
+    """
+    if not asset_url:
+        return ""
+    mt = (mime_type or "").lower()
+    label = filename or "asset"
+    if mt.startswith("image/"):
+        return f"![{label}]({asset_url})"
+    if mt.startswith("audio/"):
+        return f"[🔊 {label}]({asset_url})"
+    if mt.startswith("video/"):
+        return f"[🎬 {label}]({asset_url})"
+    if mt in ("model/gltf-binary", "model/gltf+json") or filename.lower().endswith((".glb", ".obj", ".gltf")):
+        return f"[🎲 {label}]({asset_url})"
+    return f"[{label}]({asset_url})"
+
 def register_and_build_response(
     result: Dict[str, Any],
     workflow_id: str,
@@ -76,6 +98,7 @@ def register_and_build_response(
         "width": asset_record.width,
         "height": asset_record.height,
         "bytes_size": asset_record.bytes_size,
+        "markdown_preview": _format_markdown_preview(asset_url, asset_record.mime_type, asset_record.filename),
     }
     
     if tool_name:

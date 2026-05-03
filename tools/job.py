@@ -174,10 +174,14 @@ def register_job_tools(
                                         _backend_url = history.get("_pool_backend_url") if isinstance(history, dict) else None
                                         if _backend_url:
                                             rec.set_base_url(_backend_url)
+                                        _asset_url = rec.asset_url or rec.get_asset_url(asset_registry.comfyui_base_url)
+                                        from tools.helpers import _format_markdown_preview
                                         registered.append({
                                             "asset_id": rec.asset_id,
                                             "filename": rec.filename,
                                             "subfolder": rec.subfolder,
+                                            "asset_url": _asset_url,
+                                            "markdown_preview": _format_markdown_preview(_asset_url, rec.mime_type, rec.filename),
                                         })
                                     except Exception as _reg_err:
                                         logger.warning(
