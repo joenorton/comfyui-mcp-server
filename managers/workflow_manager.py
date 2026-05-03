@@ -471,6 +471,13 @@ class WorkflowManager:
                 workflow[node_id]["inputs"][input_name] = coerced_value
         
 
+        # Topic-based filename slug (LLM-supplied or auto-derived from prompt/tags)
+        try:
+            _fallback = provided_params.get("prompt") or provided_params.get("tags") or ""
+            _inject_topic_into_filename_prefix(workflow, provided_params.get("topic", "") or "", _fallback)
+        except Exception as _topic_err:
+            logger.warning(f"render_workflow topic injection failed: {_topic_err}")
+
         # Substitute %date:...% patterns in filename_prefix fields
         import re as _re
         from datetime import date as _date
