@@ -150,15 +150,15 @@ class ComfyUIPool:
         instance. Each entry is [priority, prompt_id, prompt_dict, ...]. We return
         a merged shape so callers see one queue across the pool.
         """
+        # Return raw shape (list[list]) matching ComfyUIClient.get_queue() so
+        # downstream tools that pattern-match item[1] == prompt_id still work.
         running = []
         pending = []
-        for name, client in self.clients.items():
+        for client in self.clients.values():
             try:
                 q = client.get_queue()
-                for item in q.get('queue_running', []):
-                    running.append({'backend': name, 'item': item})
-                for item in q.get('queue_pending', []):
-                    pending.append({'backend': name, 'item': item})
+                running.extend(q.get('queue_running', []))
+                pending.extend(q.get('queue_pending', []))
             except Exception as e:
                 logger.warning(f'get_queue failed for {client.base_url}: {e}')
         return {'queue_running': running, 'queue_pending': pending}
@@ -175,6 +175,9 @@ class ComfyUIPool:
                 try:
                     h = client.get_history(prompt_id)
                     if h:
+                        # Stamp the backend URL onto the history dict so callers
+                        # (e.g. tools/job.py) can compute correct asset URLs.
+                        h.setdefault('_pool_backend_url', client.base_url)
                         return h
                 except Exception as e:
                     logger.warning(f'get_history({prompt_id}) failed on {client.base_url}: {e}')
