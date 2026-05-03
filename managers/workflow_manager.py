@@ -158,6 +158,18 @@ def _topic_from_image_ref(value) -> str:
     return _topic_from_filename(fname)
 
 
+
+
+def _strip_meta(workflow):
+    """Remove our metadata key from a workflow dict before passing it through
+    the rest of the pipeline. ComfyUI's /prompt validator only looks at node
+    entries (dicts with class_type), but it's cleaner to never let it see
+    our extra key in the first place."""
+    if isinstance(workflow, dict):
+        workflow.pop("_meta", None)
+    return workflow
+
+
 class WorkflowManager:
     def __init__(self, workflows_dir: Path):
         self.workflows_dir = Path(workflows_dir).resolve()
@@ -190,15 +202,20 @@ class WorkflowManager:
         return workflow_path if workflow_path.exists() else None
     
     def _load_workflow_metadata(self, workflow_path: Path) -> Dict[str, Any]:
-        """Load sidecar metadata file if it exists"""
-        metadata_path = workflow_path.with_suffix(".meta.json")
-        if metadata_path.exists():
-            try:
-                with open(metadata_path, "r", encoding="utf-8") as f:
-                    return json.load(f)
-            except (json.JSONDecodeError, IOError) as e:
-                logger.warning(f"Failed to load metadata for {workflow_path.name}: {e}")
-        return {}
+        """Read the workflow JSON's top-level "_meta" key.
+
+        Metadata used to live in a sibling <id>.meta.json sidecar. It now
+        lives inside the workflow JSON itself under a "_meta" key, kept
+        out of the prompt graph by the submit-time strip below.
+        """
+        try:
+            with open(workflow_path, "r", encoding="utf-8") as f:
+                wf = json.load(f)
+        except (json.JSONDecodeError, IOError) as e:
+            logger.warning(f"Failed to read workflow {workflow_path.name}: {e}")
+            return {}
+        meta = wf.get("_meta") if isinstance(wf, dict) else None
+        return meta if isinstance(meta, dict) else {}
     
     def get_workflow_catalog(self) -> list[Dict[str, Any]]:
         """Get catalog of all available workflows"""
@@ -215,6 +232,7 @@ class WorkflowManager:
             try:
                 with open(workflow_path, "r", encoding="utf-8") as f:
                     workflow = json.load(f)
+                _strip_meta(workflow)
             except (json.JSONDecodeError, IOError) as e:
                 logger.warning(f"Skipping {workflow_path.name}: {e}")
                 continue
@@ -452,6 +470,7 @@ class WorkflowManager:
             try:
                 with open(workflow_path, "r", encoding="utf-8") as handle:
                     workflow = json.load(handle)
+                _strip_meta(workflow)
             except json.JSONDecodeError as exc:
                 logger.error("Skipping workflow %s due to JSON error: %s", workflow_path.name, exc)
                 continue

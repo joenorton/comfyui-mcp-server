@@ -1,1 +1,124 @@
-{"104": {"class_type": "CLIPLoader", "inputs": {"clip_name": "qwen_2.5_vl_7b_fp8_scaled.safetensors", "type": "qwen_image", "device": "default"}}, "105": {"class_type": "UNETLoader", "inputs": {"unet_name": "qwen_image_2512_fp8_e4m3fn.safetensors", "weight_dtype": "default"}}, "103": {"class_type": "VAELoader", "inputs": {"vae_name": "qwen_image_vae.safetensors"}}, "107": {"class_type": "EmptySD3LatentImage", "inputs": {"width": 1328, "height": 1328, "batch_size": 1}}, "109": {"class_type": "VAEDecode", "inputs": {"samples": ["106", 0], "vae": ["103", 0]}}, "114": {"class_type": "LoraLoaderModelOnly", "inputs": {"model": ["105", 0], "lora_name": "Wuli-Qwen-Image-2512-Turbo-LoRA-2steps-V1.0-bf16.safetensors", "strength_model": 1}}, "106": {"class_type": "KSampler", "inputs": {"model": ["110", 0], "seed": "PARAM_INT_SEED", "steps": 2, "cfg": 1, "sampler_name": "euler", "scheduler": "simple", "positive": ["108", 0], "negative": ["128", 0], "latent_image": ["107", 0], "denoise": 1}}, "128": {"class_type": "ConditioningZeroOut", "inputs": {"conditioning": ["108", 0]}}, "110": {"class_type": "ModelSamplingAuraFlow", "inputs": {"model": ["114", 0], "shift": 3}}, "108": {"class_type": "CLIPTextEncode", "inputs": {"text": "PARAM_PROMPT", "clip": ["104", 0]}}, "123": {"class_type": "SaveImage", "inputs": {"images": ["109", 0], "filename_prefix": "images/%date:yyyy-MM-dd%-qwen25_t2i_2step"}}}
+{
+  "104": {
+    "class_type": "CLIPLoader",
+    "inputs": {
+      "clip_name": "qwen_2.5_vl_7b_fp8_scaled.safetensors",
+      "type": "qwen_image",
+      "device": "default"
+    }
+  },
+  "105": {
+    "class_type": "UNETLoader",
+    "inputs": {
+      "unet_name": "qwen_image_2512_fp8_e4m3fn.safetensors",
+      "weight_dtype": "default"
+    }
+  },
+  "103": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "qwen_image_vae.safetensors"
+    }
+  },
+  "107": {
+    "class_type": "EmptySD3LatentImage",
+    "inputs": {
+      "width": 1328,
+      "height": 1328,
+      "batch_size": 1
+    }
+  },
+  "109": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "106",
+        0
+      ],
+      "vae": [
+        "103",
+        0
+      ]
+    }
+  },
+  "114": {
+    "class_type": "LoraLoaderModelOnly",
+    "inputs": {
+      "model": [
+        "105",
+        0
+      ],
+      "lora_name": "Wuli-Qwen-Image-2512-Turbo-LoRA-2steps-V1.0-bf16.safetensors",
+      "strength_model": 1
+    }
+  },
+  "106": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": [
+        "110",
+        0
+      ],
+      "seed": "PARAM_INT_SEED",
+      "steps": 2,
+      "cfg": 1,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "positive": [
+        "108",
+        0
+      ],
+      "negative": [
+        "128",
+        0
+      ],
+      "latent_image": [
+        "107",
+        0
+      ],
+      "denoise": 1
+    }
+  },
+  "128": {
+    "class_type": "ConditioningZeroOut",
+    "inputs": {
+      "conditioning": [
+        "108",
+        0
+      ]
+    }
+  },
+  "110": {
+    "class_type": "ModelSamplingAuraFlow",
+    "inputs": {
+      "model": [
+        "114",
+        0
+      ],
+      "shift": 3
+    }
+  },
+  "108": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "PARAM_PROMPT",
+      "clip": [
+        "104",
+        0
+      ]
+    }
+  },
+  "123": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "109",
+        0
+      ],
+      "filename_prefix": "images/%date:yyyy-MM-dd%-qwen25_t2i_2step"
+    }
+  },
+  "_meta": {
+    "description": "~30s (hot) / ~2 min (cold) \u00b7 1024\u00d71024 \u00b7 Qwen 2.5 2-step LoRA variant; faster with same quality level when Qwen model already loaded. Param: prompt."
+  }
+}

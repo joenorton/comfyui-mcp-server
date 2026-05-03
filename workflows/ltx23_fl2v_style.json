@@ -447,5 +447,8 @@
       ],
       "expression": "a * b + 1"
     }
+  },
+  "_meta": {
+    "description": "~15-20 min \u00b7 960\u00d7544 \u00b7 5s @24fps \u00b7 LTX 2.3 22B first+last frame to video with cinematic style LoRA (ltx2.3-transition). Params: prompt, image (first frame), image_last (last frame)."
   }
 }

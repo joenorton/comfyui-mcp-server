@@ -1,3 +1,0 @@
-{
-  "description": "~20 min \u00b7 640\u00d7640 \u00b7 5s @16fps \u00b7 Controlled video between two keyframes; deterministic start and end frames. Params: prompt, image (first frame), image_last (last frame)."
-}

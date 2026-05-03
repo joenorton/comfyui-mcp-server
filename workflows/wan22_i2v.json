@@ -214,5 +214,8 @@
     "inputs": {
       "image": "PARAM_IMAGE"
     }
+  },
+  "_meta": {
+    "description": "~3-5 min \u00b7 640\u00d7640 \u00b7 5s @16fps \u00b7 Best image-to-video quality; richest motion from a still image. Params: prompt, image."
   }
 }

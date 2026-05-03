@@ -722,5 +722,8 @@
     "inputs": {
       "ckpt_name": "ltx-2-19b-dev-fp8.safetensors"
     }
+  },
+  "_meta": {
+    "description": "~2-3 min \u00b7 640\u00d7360 \u00b7 4.8s @25fps \u00b7 LTX-2 depth-guided video (Lotus depth estimation); good for spatial parallax motion. Params: prompt, image."
   }
 }

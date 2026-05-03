@@ -1,1 +1,285 @@
-{"122": {"class_type": "KSamplerSelect", "inputs": {"sampler_name": "euler"}}, "126": {"class_type": "UNETLoader", "inputs": {"unet_name": "flux-2-klein-9b-kv-fp8.safetensors", "weight_dtype": "default"}}, "133": {"class_type": "CLIPLoader", "inputs": {"clip_name": "qwen_3_8b_fp8mixed.safetensors", "type": "flux2", "device": "default"}}, "138": {"class_type": "CFGGuider", "inputs": {"model": ["139", 0], "positive": ["132_121", 0], "negative": ["132_119", 0], "cfg": 1}}, "127": {"class_type": "VAELoader", "inputs": {"vae_name": "flux2-vae.safetensors"}}, "135": {"class_type": "CLIPTextEncode", "inputs": {"clip": ["133", 0], "text": "PARAM_PROMPT"}}, "139": {"class_type": "FluxKVCache", "inputs": {"model": ["126", 0]}}, "123": {"class_type": "SamplerCustomAdvanced", "inputs": {"noise": ["125", 0], "guider": ["138", 0], "sampler": ["122", 0], "sigmas": ["137", 0], "latent_image": ["129", 0]}}, "125": {"class_type": "RandomNoise", "inputs": {"noise_seed": "PARAM_INT_SEED"}}, "124": {"class_type": "VAEDecode", "inputs": {"samples": ["123", 0], "vae": ["127", 0]}}, "94": {"class_type": "SaveImage", "inputs": {"images": ["124", 0], "filename_prefix": "images/%date:yyyy-MM-dd%-flux2_klein_i2i_kv"}}, "685": {"class_type": "ConditioningZeroOut", "inputs": {"conditioning": ["135", 0]}}, "137": {"class_type": "Flux2Scheduler", "inputs": {"steps": 4, "width": ["128", 0], "height": ["128", 1]}}, "129": {"class_type": "EmptyFlux2LatentImage", "inputs": {"width": ["128", 0], "height": ["128", 1], "batch_size": 1}}, "128": {"class_type": "GetImageSize", "inputs": {"image": ["130", 0]}}, "130": {"class_type": "ImageScaleToTotalPixels", "inputs": {"image": ["76", 0], "upscale_method": "lanczos", "megapixels": 1, "resolution_steps": 1}}, "131": {"class_type": "ImageScaleToTotalPixels", "inputs": {"image": ["81", 0], "upscale_method": "lanczos", "megapixels": 1, "resolution_steps": 1}}, "81": {"class_type": "LoadImage", "inputs": {"image": "PARAM_IMAGE_LAST", "upload": "image"}}, "76": {"class_type": "LoadImage", "inputs": {"image": "PARAM_IMAGE", "upload": "image"}}, "134_116": {"class_type": "ReferenceLatent", "inputs": {"conditioning": ["685", 0], "latent": ["134_117", 0]}}, "134_117": {"class_type": "VAEEncode", "inputs": {"pixels": ["130", 0], "vae": ["127", 0]}}, "134_118": {"class_type": "ReferenceLatent", "inputs": {"conditioning": ["135", 0], "latent": ["134_117", 0]}}, "132_119": {"class_type": "ReferenceLatent", "inputs": {"conditioning": ["134_116", 0], "latent": ["132_120", 0]}}, "132_120": {"class_type": "VAEEncode", "inputs": {"pixels": ["131", 0], "vae": ["127", 0]}}, "132_121": {"class_type": "ReferenceLatent", "inputs": {"conditioning": ["134_118", 0], "latent": ["132_120", 0]}}}
+{
+  "122": {
+    "class_type": "KSamplerSelect",
+    "inputs": {
+      "sampler_name": "euler"
+    }
+  },
+  "126": {
+    "class_type": "UNETLoader",
+    "inputs": {
+      "unet_name": "flux-2-klein-9b-kv-fp8.safetensors",
+      "weight_dtype": "default"
+    }
+  },
+  "133": {
+    "class_type": "CLIPLoader",
+    "inputs": {
+      "clip_name": "qwen_3_8b_fp8mixed.safetensors",
+      "type": "flux2",
+      "device": "default"
+    }
+  },
+  "138": {
+    "class_type": "CFGGuider",
+    "inputs": {
+      "model": [
+        "139",
+        0
+      ],
+      "positive": [
+        "132_121",
+        0
+      ],
+      "negative": [
+        "132_119",
+        0
+      ],
+      "cfg": 1
+    }
+  },
+  "127": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "flux2-vae.safetensors"
+    }
+  },
+  "135": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "clip": [
+        "133",
+        0
+      ],
+      "text": "PARAM_PROMPT"
+    }
+  },
+  "139": {
+    "class_type": "FluxKVCache",
+    "inputs": {
+      "model": [
+        "126",
+        0
+      ]
+    }
+  },
+  "123": {
+    "class_type": "SamplerCustomAdvanced",
+    "inputs": {
+      "noise": [
+        "125",
+        0
+      ],
+      "guider": [
+        "138",
+        0
+      ],
+      "sampler": [
+        "122",
+        0
+      ],
+      "sigmas": [
+        "137",
+        0
+      ],
+      "latent_image": [
+        "129",
+        0
+      ]
+    }
+  },
+  "125": {
+    "class_type": "RandomNoise",
+    "inputs": {
+      "noise_seed": "PARAM_INT_SEED"
+    }
+  },
+  "124": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "123",
+        0
+      ],
+      "vae": [
+        "127",
+        0
+      ]
+    }
+  },
+  "94": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "124",
+        0
+      ],
+      "filename_prefix": "images/%date:yyyy-MM-dd%-flux2_klein_i2i_kv"
+    }
+  },
+  "685": {
+    "class_type": "ConditioningZeroOut",
+    "inputs": {
+      "conditioning": [
+        "135",
+        0
+      ]
+    }
+  },
+  "137": {
+    "class_type": "Flux2Scheduler",
+    "inputs": {
+      "steps": 4,
+      "width": [
+        "128",
+        0
+      ],
+      "height": [
+        "128",
+        1
+      ]
+    }
+  },
+  "129": {
+    "class_type": "EmptyFlux2LatentImage",
+    "inputs": {
+      "width": [
+        "128",
+        0
+      ],
+      "height": [
+        "128",
+        1
+      ],
+      "batch_size": 1
+    }
+  },
+  "128": {
+    "class_type": "GetImageSize",
+    "inputs": {
+      "image": [
+        "130",
+        0
+      ]
+    }
+  },
+  "130": {
+    "class_type": "ImageScaleToTotalPixels",
+    "inputs": {
+      "image": [
+        "76",
+        0
+      ],
+      "upscale_method": "lanczos",
+      "megapixels": 1,
+      "resolution_steps": 1
+    }
+  },
+  "131": {
+    "class_type": "ImageScaleToTotalPixels",
+    "inputs": {
+      "image": [
+        "81",
+        0
+      ],
+      "upscale_method": "lanczos",
+      "megapixels": 1,
+      "resolution_steps": 1
+    }
+  },
+  "81": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "PARAM_IMAGE_LAST",
+      "upload": "image"
+    }
+  },
+  "76": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "PARAM_IMAGE",
+      "upload": "image"
+    }
+  },
+  "134_116": {
+    "class_type": "ReferenceLatent",
+    "inputs": {
+      "conditioning": [
+        "685",
+        0
+      ],
+      "latent": [
+        "134_117",
+        0
+      ]
+    }
+  },
+  "134_117": {
+    "class_type": "VAEEncode",
+    "inputs": {
+      "pixels": [
+        "130",
+        0
+      ],
+      "vae": [
+        "127",
+        0
+      ]
+    }
+  },
+  "134_118": {
+    "class_type": "ReferenceLatent",
+    "inputs": {
+      "conditioning": [
+        "135",
+        0
+      ],
+      "latent": [
+        "134_117",
+        0
+      ]
+    }
+  },
+  "132_119": {
+    "class_type": "ReferenceLatent",
+    "inputs": {
+      "conditioning": [
+        "134_116",
+        0
+      ],
+      "latent": [
+        "132_120",
+        0
+      ]
+    }
+  },
+  "132_120": {
+    "class_type": "VAEEncode",
+    "inputs": {
+      "pixels": [
+        "131",
+        0
+      ],
+      "vae": [
+        "127",
+        0
+      ]
+    }
+  },
+  "132_121": {
+    "class_type": "ReferenceLatent",
+    "inputs": {
+      "conditioning": [
+        "134_118",
+        0
+      ],
+      "latent": [
+        "132_120",
+        0
+      ]
+    }
+  },
+  "_meta": {
+    "description": "~1 min \u00b7 matches input \u00b7 Flux 2 Klein 9B KV-cache image editing; pass reference image and target image to edit. Params: prompt, image (reference), image_last (target to edit)."
+  }
+}

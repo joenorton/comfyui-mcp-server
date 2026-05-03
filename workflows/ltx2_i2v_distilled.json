@@ -470,5 +470,8 @@
     "inputs": {
       "ckpt_name": "ltx-2-19b-distilled-fp8.safetensors"
     }
+  },
+  "_meta": {
+    "description": "~2-3 min \u00b7 640\u00d7360 \u00b7 4.8s @25fps \u00b7 Quickest LTX-2 image animation; good for motion testing before committing to slower runs. Params: prompt, image."
   }
 }

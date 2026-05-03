@@ -1,1 +1,110 @@
-{"3": {"inputs": {"seed": "PARAM_INT_SEED", "steps": "PARAM_INT_STEPS", "cfg": "PARAM_FLOAT_CFG", "sampler_name": "PARAM_STR_SAMPLER_NAME", "scheduler": "PARAM_STR_SCHEDULER", "denoise": "PARAM_FLOAT_DENOISE", "model": ["4", 0], "positive": ["6", 0], "negative": ["7", 0], "latent_image": ["5", 0]}, "class_type": "KSampler", "_meta": {"title": "KSampler"}}, "4": {"inputs": {"ckpt_name": "PARAM_MODEL"}, "class_type": "CheckpointLoaderSimple", "_meta": {"title": "Load Checkpoint"}}, "5": {"inputs": {"width": "PARAM_INT_WIDTH", "height": "PARAM_INT_HEIGHT", "batch_size": 1}, "class_type": "EmptyLatentImage", "_meta": {"title": "Empty Latent Image"}}, "6": {"inputs": {"text": "PARAM_PROMPT", "clip": ["4", 1]}, "class_type": "CLIPTextEncode", "_meta": {"title": "CLIP Text Encode (Prompt)"}}, "7": {"inputs": {"text": "PARAM_NEGATIVE_PROMPT", "clip": ["4", 1]}, "class_type": "CLIPTextEncode", "_meta": {"title": "CLIP Text Encode (Prompt)"}}, "8": {"inputs": {"samples": ["3", 0], "vae": ["4", 2]}, "class_type": "VAEDecode", "_meta": {"title": "VAE Decode"}}, "9": {"inputs": {"filename_prefix": "images/%date:yyyy-MM-dd%-sdxl_t2i", "images": ["8", 0]}, "class_type": "SaveImage", "_meta": {"title": "Save Image"}}}
+{
+  "3": {
+    "inputs": {
+      "seed": "PARAM_INT_SEED",
+      "steps": "PARAM_INT_STEPS",
+      "cfg": "PARAM_FLOAT_CFG",
+      "sampler_name": "PARAM_STR_SAMPLER_NAME",
+      "scheduler": "PARAM_STR_SCHEDULER",
+      "denoise": "PARAM_FLOAT_DENOISE",
+      "model": [
+        "4",
+        0
+      ],
+      "positive": [
+        "6",
+        0
+      ],
+      "negative": [
+        "7",
+        0
+      ],
+      "latent_image": [
+        "5",
+        0
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "KSampler"
+    }
+  },
+  "4": {
+    "inputs": {
+      "ckpt_name": "PARAM_MODEL"
+    },
+    "class_type": "CheckpointLoaderSimple",
+    "_meta": {
+      "title": "Load Checkpoint"
+    }
+  },
+  "5": {
+    "inputs": {
+      "width": "PARAM_INT_WIDTH",
+      "height": "PARAM_INT_HEIGHT",
+      "batch_size": 1
+    },
+    "class_type": "EmptyLatentImage",
+    "_meta": {
+      "title": "Empty Latent Image"
+    }
+  },
+  "6": {
+    "inputs": {
+      "text": "PARAM_PROMPT",
+      "clip": [
+        "4",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (Prompt)"
+    }
+  },
+  "7": {
+    "inputs": {
+      "text": "PARAM_NEGATIVE_PROMPT",
+      "clip": [
+        "4",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "CLIP Text Encode (Prompt)"
+    }
+  },
+  "8": {
+    "inputs": {
+      "samples": [
+        "3",
+        0
+      ],
+      "vae": [
+        "4",
+        2
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode"
+    }
+  },
+  "9": {
+    "inputs": {
+      "filename_prefix": "images/%date:yyyy-MM-dd%-sdxl_t2i",
+      "images": [
+        "8",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "Save Image"
+    }
+  },
+  "_meta": {
+    "description": "~30s \u00b7 1024\u00d71024 \u00b7 Versatile SDXL text-to-image; model-swappable (default: JuggernautXL). Good for photorealistic and artistic styles. Params: prompt, model, width, height."
+  }
+}

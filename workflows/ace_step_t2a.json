@@ -1,1 +1,150 @@
-{"59": {"inputs": {"filename_prefix": "audio/%date:yyyy-MM-dd%-ace_step_t2a", "quality": "V0", "audioUI": "", "audio": ["74:18", 0]}, "class_type": "SaveAudioMP3", "_meta": {"title": "Save Audio (MP3)"}}, "74:49": {"inputs": {"model": ["74:51", 0], "operation": ["74:50", 0]}, "class_type": "LatentApplyOperationCFG", "_meta": {"title": "LatentApplyOperationCFG"}}, "74:18": {"inputs": {"samples": ["74:52", 0], "vae": ["74:40", 2]}, "class_type": "VAEDecodeAudio", "_meta": {"title": "VAEDecodeAudio"}}, "74:44": {"inputs": {"conditioning": ["74:14", 0]}, "class_type": "ConditioningZeroOut", "_meta": {"title": "ConditioningZeroOut"}}, "74:51": {"inputs": {"shift": 5.000000000000001, "model": ["74:40", 0]}, "class_type": "ModelSamplingSD3", "_meta": {"title": "ModelSamplingSD3"}}, "74:50": {"inputs": {"multiplier": 1}, "class_type": "LatentOperationTonemapReinhard", "_meta": {"title": "LatentOperationTonemapReinhard"}}, "74:52": {"inputs": {"seed": "PARAM_INT_SEED", "steps": "PARAM_INT_STEPS", "cfg": "PARAM_FLOAT_CFG", "sampler_name": "euler", "scheduler": "simple", "denoise": 1, "model": ["74:49", 0], "positive": ["74:14", 0], "negative": ["74:44", 0], "latent_image": ["74:17", 0]}, "class_type": "KSampler", "_meta": {"title": "KSampler"}}, "74:17": {"inputs": {"seconds": "PARAM_INT_SECONDS", "batch_size": 1}, "class_type": "EmptyAceStepLatentAudio", "_meta": {"title": "EmptyAceStepLatentAudio"}}, "74:40": {"inputs": {"ckpt_name": "ace_step_v1_3.5b.safetensors"}, "class_type": "CheckpointLoaderSimple", "_meta": {"title": "Load Checkpoint"}}, "74:14": {"inputs": {"tags": "PARAM_TAGS", "lyrics": "PARAM_LYRICS", "lyrics_strength": "PARAM_FLOAT_LYRICS_STRENGTH", "clip": ["74:40", 1]}, "class_type": "TextEncodeAceStepAudio", "_meta": {"title": "TextEncodeAceStepAudio"}}}
+{
+  "59": {
+    "inputs": {
+      "filename_prefix": "audio/%date:yyyy-MM-dd%-ace_step_t2a",
+      "quality": "V0",
+      "audioUI": "",
+      "audio": [
+        "74:18",
+        0
+      ]
+    },
+    "class_type": "SaveAudioMP3",
+    "_meta": {
+      "title": "Save Audio (MP3)"
+    }
+  },
+  "74:49": {
+    "inputs": {
+      "model": [
+        "74:51",
+        0
+      ],
+      "operation": [
+        "74:50",
+        0
+      ]
+    },
+    "class_type": "LatentApplyOperationCFG",
+    "_meta": {
+      "title": "LatentApplyOperationCFG"
+    }
+  },
+  "74:18": {
+    "inputs": {
+      "samples": [
+        "74:52",
+        0
+      ],
+      "vae": [
+        "74:40",
+        2
+      ]
+    },
+    "class_type": "VAEDecodeAudio",
+    "_meta": {
+      "title": "VAEDecodeAudio"
+    }
+  },
+  "74:44": {
+    "inputs": {
+      "conditioning": [
+        "74:14",
+        0
+      ]
+    },
+    "class_type": "ConditioningZeroOut",
+    "_meta": {
+      "title": "ConditioningZeroOut"
+    }
+  },
+  "74:51": {
+    "inputs": {
+      "shift": 5.000000000000001,
+      "model": [
+        "74:40",
+        0
+      ]
+    },
+    "class_type": "ModelSamplingSD3",
+    "_meta": {
+      "title": "ModelSamplingSD3"
+    }
+  },
+  "74:50": {
+    "inputs": {
+      "multiplier": 1
+    },
+    "class_type": "LatentOperationTonemapReinhard",
+    "_meta": {
+      "title": "LatentOperationTonemapReinhard"
+    }
+  },
+  "74:52": {
+    "inputs": {
+      "seed": "PARAM_INT_SEED",
+      "steps": "PARAM_INT_STEPS",
+      "cfg": "PARAM_FLOAT_CFG",
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "denoise": 1,
+      "model": [
+        "74:49",
+        0
+      ],
+      "positive": [
+        "74:14",
+        0
+      ],
+      "negative": [
+        "74:44",
+        0
+      ],
+      "latent_image": [
+        "74:17",
+        0
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "KSampler"
+    }
+  },
+  "74:17": {
+    "inputs": {
+      "seconds": "PARAM_INT_SECONDS",
+      "batch_size": 1
+    },
+    "class_type": "EmptyAceStepLatentAudio",
+    "_meta": {
+      "title": "EmptyAceStepLatentAudio"
+    }
+  },
+  "74:40": {
+    "inputs": {
+      "ckpt_name": "ace_step_v1_3.5b.safetensors"
+    },
+    "class_type": "CheckpointLoaderSimple",
+    "_meta": {
+      "title": "Load Checkpoint"
+    }
+  },
+  "74:14": {
+    "inputs": {
+      "tags": "PARAM_TAGS",
+      "lyrics": "PARAM_LYRICS",
+      "lyrics_strength": "PARAM_FLOAT_LYRICS_STRENGTH",
+      "clip": [
+        "74:40",
+        1
+      ]
+    },
+    "class_type": "TextEncodeAceStepAudio",
+    "_meta": {
+      "title": "TextEncodeAceStepAudio"
+    }
+  },
+  "_meta": {
+    "description": "~1-2 min \u00b7 60s stereo MP3 \u00b7 ACE-Step v1 music generation from genre tags + lyrics; supports full song structure. Params: tags (genre/instrument/mood), lyrics."
+  }
+}

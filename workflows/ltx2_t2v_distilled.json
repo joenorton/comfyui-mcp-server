@@ -382,5 +382,8 @@
         0
       ]
     }
+  },
+  "_meta": {
+    "description": "~2 min \u00b7 640\u00d7360 \u00b7 4.8s @25fps \u00b7 Quickest LTX-2 text-to-video draft; good for prompt iteration. Param: prompt."
   }
 }

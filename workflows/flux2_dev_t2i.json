@@ -1,1 +1,174 @@
-{"1": {"class_type": "CLIPLoader", "inputs": {"clip_name": "mistral_3_small_flux2_fp8.safetensors", "type": "flux2", "device": "default"}, "_meta": {"title": "Text Encoder"}}, "2": {"class_type": "UNETLoader", "inputs": {"unet_name": "flux2_dev_fp8mixed.safetensors", "weight_dtype": "default"}, "_meta": {"title": "Diffusion Model"}}, "3": {"class_type": "VAELoader", "inputs": {"vae_name": "flux2-vae.safetensors"}, "_meta": {"title": "VAE"}}, "4": {"class_type": "CLIPTextEncode", "inputs": {"text": "PARAM_PROMPT", "clip": ["1", 0]}, "_meta": {"title": "Prompt"}}, "5": {"class_type": "EmptyFlux2LatentImage", "inputs": {"width": 1024, "height": 1024, "batch_size": 1}, "_meta": {"title": "Empty Latent"}}, "6": {"class_type": "FluxGuidance", "inputs": {"conditioning": ["4", 0], "guidance": 3.5}, "_meta": {"title": "Flux Guidance"}}, "7": {"class_type": "BasicGuider", "inputs": {"model": ["2", 0], "conditioning": ["6", 0]}, "_meta": {"title": "Guider"}}, "8": {"class_type": "RandomNoise", "inputs": {"noise_seed": "PARAM_INT_SEED"}, "_meta": {"title": "Noise Seed"}}, "9": {"class_type": "KSamplerSelect", "inputs": {"sampler_name": "euler"}, "_meta": {"title": "Sampler"}}, "10": {"class_type": "Flux2Scheduler", "inputs": {"steps": 20, "width": 1024, "height": 1024}, "_meta": {"title": "Scheduler"}}, "11": {"class_type": "SamplerCustomAdvanced", "inputs": {"noise": ["8", 0], "guider": ["7", 0], "sampler": ["9", 0], "sigmas": ["10", 0], "latent_image": ["5", 0]}, "_meta": {"title": "Sampler"}}, "12": {"class_type": "VAEDecode", "inputs": {"samples": ["11", 0], "vae": ["3", 0]}, "_meta": {"title": "VAE Decode"}}, "13": {"class_type": "SaveImage", "inputs": {"images": ["12", 0], "filename_prefix": "images/%date:yyyy-MM-dd%-flux2_dev_t2i"}, "_meta": {"title": "Save Image"}}}
+{
+  "1": {
+    "class_type": "CLIPLoader",
+    "inputs": {
+      "clip_name": "mistral_3_small_flux2_fp8.safetensors",
+      "type": "flux2",
+      "device": "default"
+    },
+    "_meta": {
+      "title": "Text Encoder"
+    }
+  },
+  "2": {
+    "class_type": "UNETLoader",
+    "inputs": {
+      "unet_name": "flux2_dev_fp8mixed.safetensors",
+      "weight_dtype": "default"
+    },
+    "_meta": {
+      "title": "Diffusion Model"
+    }
+  },
+  "3": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "flux2-vae.safetensors"
+    },
+    "_meta": {
+      "title": "VAE"
+    }
+  },
+  "4": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "PARAM_PROMPT",
+      "clip": [
+        "1",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Prompt"
+    }
+  },
+  "5": {
+    "class_type": "EmptyFlux2LatentImage",
+    "inputs": {
+      "width": 1024,
+      "height": 1024,
+      "batch_size": 1
+    },
+    "_meta": {
+      "title": "Empty Latent"
+    }
+  },
+  "6": {
+    "class_type": "FluxGuidance",
+    "inputs": {
+      "conditioning": [
+        "4",
+        0
+      ],
+      "guidance": 3.5
+    },
+    "_meta": {
+      "title": "Flux Guidance"
+    }
+  },
+  "7": {
+    "class_type": "BasicGuider",
+    "inputs": {
+      "model": [
+        "2",
+        0
+      ],
+      "conditioning": [
+        "6",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Guider"
+    }
+  },
+  "8": {
+    "class_type": "RandomNoise",
+    "inputs": {
+      "noise_seed": "PARAM_INT_SEED"
+    },
+    "_meta": {
+      "title": "Noise Seed"
+    }
+  },
+  "9": {
+    "class_type": "KSamplerSelect",
+    "inputs": {
+      "sampler_name": "euler"
+    },
+    "_meta": {
+      "title": "Sampler"
+    }
+  },
+  "10": {
+    "class_type": "Flux2Scheduler",
+    "inputs": {
+      "steps": 20,
+      "width": 1024,
+      "height": 1024
+    },
+    "_meta": {
+      "title": "Scheduler"
+    }
+  },
+  "11": {
+    "class_type": "SamplerCustomAdvanced",
+    "inputs": {
+      "noise": [
+        "8",
+        0
+      ],
+      "guider": [
+        "7",
+        0
+      ],
+      "sampler": [
+        "9",
+        0
+      ],
+      "sigmas": [
+        "10",
+        0
+      ],
+      "latent_image": [
+        "5",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "Sampler"
+    }
+  },
+  "12": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "11",
+        0
+      ],
+      "vae": [
+        "3",
+        0
+      ]
+    },
+    "_meta": {
+      "title": "VAE Decode"
+    }
+  },
+  "13": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "12",
+        0
+      ],
+      "filename_prefix": "images/%date:yyyy-MM-dd%-flux2_dev_t2i"
+    },
+    "_meta": {
+      "title": "Save Image"
+    }
+  },
+  "_meta": {
+    "description": "~2 min \u00b7 1024\u00d71024 \u00b7 Flux 2 Dev next-gen text-to-image; 20 steps; high quality. Needs clear GPU. Param: prompt."
+  }
+}

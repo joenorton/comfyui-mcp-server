@@ -1,1 +1,170 @@
-{"9": {"class_type": "SaveImage", "inputs": {"images": ["75_65", 0], "filename_prefix": "images/%date:yyyy-MM-dd%-flux_klein_4b_t2i"}}, "76": {"class_type": "PrimitiveStringMultiline", "inputs": {"value": "A hedgehog wearing a tiny party hat surrounded by confetti, early digital camera style, slight noise, flash photography, candid moment, 2000s digicam aesthetic, festive birthday celebration atmosphere\n"}}, "75_61": {"class_type": "KSamplerSelect", "inputs": {"sampler_name": "euler"}}, "75_62": {"class_type": "Flux2Scheduler", "inputs": {"steps": 20, "width": ["75_68", 0], "height": ["75_69", 0]}}, "75_63": {"class_type": "CFGGuider", "inputs": {"model": ["75_70", 0], "positive": ["75_74", 0], "negative": ["75_67", 0], "cfg": 5}}, "75_64": {"class_type": "SamplerCustomAdvanced", "inputs": {"noise": ["75_73", 0], "guider": ["75_63", 0], "sampler": ["75_61", 0], "sigmas": ["75_62", 0], "latent_image": ["75_66", 0]}}, "75_65": {"class_type": "VAEDecode", "inputs": {"samples": ["75_64", 0], "vae": ["75_72", 0]}}, "75_66": {"class_type": "EmptyFlux2LatentImage", "inputs": {"width": ["75_68", 0], "height": ["75_69", 0], "batch_size": 1}}, "75_67": {"class_type": "CLIPTextEncode", "inputs": {"text": "PARAM_NEGATIVE_PROMPT", "clip": ["75_71", 0]}}, "75_68": {"class_type": "PrimitiveInt", "inputs": {"value": 1024}}, "75_69": {"class_type": "PrimitiveInt", "inputs": {"value": 1024}}, "75_73": {"class_type": "RandomNoise", "inputs": {"noise_seed": "PARAM_INT_SEED"}}, "75_70": {"class_type": "UNETLoader", "inputs": {"unet_name": "flux-2-klein-base-4b.safetensors", "weight_dtype": "default"}}, "75_71": {"class_type": "CLIPLoader", "inputs": {"clip_name": "qwen_3_4b.safetensors", "type": "flux2", "device": "default"}}, "75_72": {"class_type": "VAELoader", "inputs": {"vae_name": "flux2-vae.safetensors"}}, "75_74": {"class_type": "CLIPTextEncode", "inputs": {"text": "PARAM_PROMPT", "clip": ["75_71", 0]}}}
+{
+  "9": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "75_65",
+        0
+      ],
+      "filename_prefix": "images/%date:yyyy-MM-dd%-flux_klein_4b_t2i"
+    }
+  },
+  "76": {
+    "class_type": "PrimitiveStringMultiline",
+    "inputs": {
+      "value": "A hedgehog wearing a tiny party hat surrounded by confetti, early digital camera style, slight noise, flash photography, candid moment, 2000s digicam aesthetic, festive birthday celebration atmosphere\n"
+    }
+  },
+  "75_61": {
+    "class_type": "KSamplerSelect",
+    "inputs": {
+      "sampler_name": "euler"
+    }
+  },
+  "75_62": {
+    "class_type": "Flux2Scheduler",
+    "inputs": {
+      "steps": 20,
+      "width": [
+        "75_68",
+        0
+      ],
+      "height": [
+        "75_69",
+        0
+      ]
+    }
+  },
+  "75_63": {
+    "class_type": "CFGGuider",
+    "inputs": {
+      "model": [
+        "75_70",
+        0
+      ],
+      "positive": [
+        "75_74",
+        0
+      ],
+      "negative": [
+        "75_67",
+        0
+      ],
+      "cfg": 5
+    }
+  },
+  "75_64": {
+    "class_type": "SamplerCustomAdvanced",
+    "inputs": {
+      "noise": [
+        "75_73",
+        0
+      ],
+      "guider": [
+        "75_63",
+        0
+      ],
+      "sampler": [
+        "75_61",
+        0
+      ],
+      "sigmas": [
+        "75_62",
+        0
+      ],
+      "latent_image": [
+        "75_66",
+        0
+      ]
+    }
+  },
+  "75_65": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "75_64",
+        0
+      ],
+      "vae": [
+        "75_72",
+        0
+      ]
+    }
+  },
+  "75_66": {
+    "class_type": "EmptyFlux2LatentImage",
+    "inputs": {
+      "width": [
+        "75_68",
+        0
+      ],
+      "height": [
+        "75_69",
+        0
+      ],
+      "batch_size": 1
+    }
+  },
+  "75_67": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "PARAM_NEGATIVE_PROMPT",
+      "clip": [
+        "75_71",
+        0
+      ]
+    }
+  },
+  "75_68": {
+    "class_type": "PrimitiveInt",
+    "inputs": {
+      "value": 1024
+    }
+  },
+  "75_69": {
+    "class_type": "PrimitiveInt",
+    "inputs": {
+      "value": 1024
+    }
+  },
+  "75_73": {
+    "class_type": "RandomNoise",
+    "inputs": {
+      "noise_seed": "PARAM_INT_SEED"
+    }
+  },
+  "75_70": {
+    "class_type": "UNETLoader",
+    "inputs": {
+      "unet_name": "flux-2-klein-base-4b.safetensors",
+      "weight_dtype": "default"
+    }
+  },
+  "75_71": {
+    "class_type": "CLIPLoader",
+    "inputs": {
+      "clip_name": "qwen_3_4b.safetensors",
+      "type": "flux2",
+      "device": "default"
+    }
+  },
+  "75_72": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "flux2-vae.safetensors"
+    }
+  },
+  "75_74": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "PARAM_PROMPT",
+      "clip": [
+        "75_71",
+        0
+      ]
+    }
+  },
+  "_meta": {
+    "description": "~60s \u00b7 1024\u00d71024 \u00b7 Flux Klein 4B text-to-image; balanced quality/speed with Flux aesthetics. Param: prompt."
+  }
+}
