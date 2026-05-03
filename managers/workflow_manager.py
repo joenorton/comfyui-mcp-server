@@ -60,12 +60,40 @@ def _slugify_topic(value: str) -> str:
     return s[:30]
 
 
-def _inject_topic_into_filename_prefix(workflow: dict, topic: str) -> None:
-    """Mutate workflow in place: insert `<topic>_` after the date token in
-    every Save* node's filename_prefix. No-op when topic is empty or the
-    pattern is missing.
+_TOPIC_STOPWORDS = {
+    "a", "an", "the", "of", "in", "on", "at", "with", "for", "to",
+    "is", "are", "was", "were", "be", "been", "being", "this", "that",
+    "these", "those", "it", "its", "there", "by", "as", "from", "or",
+    "and", "but", "not", "no", "into", "onto", "out", "up", "down",
+    "over", "under", "some", "any", "all", "each", "very", "really",
+    "realistic", "photo", "photograph", "image", "picture", "render",
+    "generate", "create", "make", "give", "show",
+}
+
+
+def _auto_topic_from_text(text: str) -> str:
+    """Derive a slug from a prompt-like string when the LLM skipped 'topic'.
+
+    Strategy: lowercase, take alphabetic tokens, drop English stopwords + a few
+    generic 'image'-type words, keep the first 2-3 surviving tokens.
     """
-    slug = _slugify_topic(topic)
+    if not isinstance(text, str) or not text.strip():
+        return ""
+    tokens = _topic_re.findall(r"[A-Za-z]+", text.lower())
+    keep = [t for t in tokens if t not in _TOPIC_STOPWORDS]
+    if not keep:
+        return ""
+    return _slugify_topic("_".join(keep[:3]))
+
+
+def _inject_topic_into_filename_prefix(workflow: dict, topic: str, fallback_text: str = "") -> None:
+    """Mutate workflow in place: insert `<topic>_` after the date token in
+    every Save* node's filename_prefix.
+
+    If `topic` is empty, derive a slug from `fallback_text` (typically the
+    workflow's prompt / tags). No-op if both are empty or the pattern is missing.
+    """
+    slug = _slugify_topic(topic) or _auto_topic_from_text(fallback_text)
     if not slug:
         return
     for node in workflow.values():
@@ -287,7 +315,8 @@ class WorkflowManager:
 
         # Topic-based filename slug (optional; supplied via overrides["topic"])
         try:
-            _inject_topic_into_filename_prefix(workflow, overrides.get("topic", ""))
+            _fallback = overrides.get("prompt") or overrides.get("tags") or ""
+            _inject_topic_into_filename_prefix(workflow, overrides.get("topic", ""), _fallback)
         except Exception as _topic_err:
             import logging as _lg; _lg.getLogger(__name__).warning(f"topic injection failed: {_topic_err}")
 
