@@ -45,6 +45,44 @@ AUDIO_OUTPUT_KEYS = ("audio", "audios", "sound", "files")
 VIDEO_OUTPUT_KEYS = ("videos", "video", "mp4", "mov", "webm")
 
 
+
+
+import re as _topic_re
+
+_TOPIC_DATE_TOKEN = _topic_re.compile(r"(%date:[^%]+%-)")
+
+
+def _slugify_topic(value: str) -> str:
+    """Lower-case, alnum + underscore only, length-capped."""
+    if not isinstance(value, str):
+        return ""
+    s = _topic_re.sub(r"[^A-Za-z0-9]+", "_", value.strip()).strip("_").lower()
+    return s[:30]
+
+
+def _inject_topic_into_filename_prefix(workflow: dict, topic: str) -> None:
+    """Mutate workflow in place: insert `<topic>_` after the date token in
+    every Save* node's filename_prefix. No-op when topic is empty or the
+    pattern is missing.
+    """
+    slug = _slugify_topic(topic)
+    if not slug:
+        return
+    for node in workflow.values():
+        if not isinstance(node, dict):
+            continue
+        inp = node.get("inputs", {})
+        fp = inp.get("filename_prefix")
+        if not isinstance(fp, str):
+            continue
+        if "%date:" not in fp:
+            continue
+        # Skip if slug is already there (idempotent)
+        if f"{slug}_" in fp:
+            continue
+        inp["filename_prefix"] = _TOPIC_DATE_TOKEN.sub(rf"\1{slug}_", fp, count=1)
+
+
 class WorkflowManager:
     def __init__(self, workflows_dir: Path):
         self.workflows_dir = Path(workflows_dir).resolve()
@@ -246,6 +284,13 @@ class WorkflowManager:
                             if node_id in workflow and "inputs" in workflow[node_id]:
                                 workflow[node_id]["inputs"][input_name] = default_value
 
+
+        # Topic-based filename slug (optional; supplied via overrides["topic"])
+        try:
+            _inject_topic_into_filename_prefix(workflow, overrides.get("topic", ""))
+        except Exception as _topic_err:
+            import logging as _lg; _lg.getLogger(__name__).warning(f"topic injection failed: {_topic_err}")
+
         # Substitute %date:...% patterns in filename_prefix fields
         import re as _re
         from datetime import date as _date
@@ -338,7 +383,7 @@ class WorkflowManager:
             definition = WorkflowToolDefinition(
                 workflow_id=workflow_path.stem,
                 tool_name=tool_name,
-                description=(self._load_workflow_metadata(workflow_path).get("description") or self._derive_description(workflow_path.stem)) + " Response includes a 'markdown_preview' string — paste it verbatim into your reply to display the result inline.",
+                description=(self._load_workflow_metadata(workflow_path).get("description") or self._derive_description(workflow_path.stem)) + " Optional 'topic' parameter (1-2 word slug, e.g. 'giraffe' or 'forest_scene') gets baked into the output filename for searchability. Response includes a 'markdown_preview' string — paste it verbatim into your reply to display the result inline.",
                 template=workflow,
                 parameters=parameters,
                 output_preferences=self._guess_output_preferences(workflow),

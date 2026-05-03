@@ -28,6 +28,7 @@ def register_workflow_generation_tools(
             # Extract return_inline_preview and backend — not workflow parameters
             return_inline_preview = kwargs.pop("return_inline_preview", False)
             backend = kwargs.pop("backend", None)
+            topic = kwargs.pop("topic", None)
             # Session tracking can be added via request context in the future
             session_id = None
             
@@ -80,6 +81,9 @@ def register_workflow_generation_tools(
 
             bound = _tool_impl.__signature__.bind(*args, **coerced_kwargs)
             bound.apply_defaults()
+            # Re-attach topic so apply_workflow_overrides sees it
+            if topic:
+                bound.arguments["topic"] = topic
             
             # Determine namespace using workflow manager (content-aware)
             namespace = workflow_manager._determine_namespace(definition.workflow_id)
@@ -209,6 +213,15 @@ def register_workflow_generation_tools(
             default=None,
         ))
         annotations["backend"] = Optional[str]
+        # Topic slug — drives output filename for searchability.
+        # Convention: 1-2 words, e.g. "giraffe", "forest_scene".
+        optional_params.append(inspect.Parameter(
+            name="topic",
+            kind=inspect.Parameter.POSITIONAL_OR_KEYWORD,
+            annotation=Optional[str],
+            default=None,
+        ))
+        annotations["topic"] = Optional[str]
         
         # Combine: required parameters first, then optional
         parameters = required_params + optional_params
