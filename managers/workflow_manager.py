@@ -111,6 +111,52 @@ def _inject_topic_into_filename_prefix(workflow: dict, topic: str, fallback_text
         inp["filename_prefix"] = _TOPIC_DATE_TOKEN.sub(rf"\1{slug}_", fp, count=1)
 
 
+
+
+# Workflow IDs are appended at the end of legacy filenames; we strip them when
+# back-deriving a slug from a source asset filename. Filled lazily by
+# WorkflowManager when it loads workflows.
+_KNOWN_WORKFLOW_IDS: list = []
+
+
+def _topic_from_filename(fname: str) -> str:
+    """Best-effort extraction of the topic slug from a source asset filename.
+
+    Pattern emitted by this server: <date>-<topic>?<workflow_id>_comfyui<N>_<NNNNN>_.<ext>
+    Strip the known suffixes and date prefix; whatever remains is the topic
+    (or empty when none was baked in).
+    """
+    if not isinstance(fname, str) or not fname.strip():
+        return ""
+    import os as _os, re as _r
+    base = _os.path.splitext(_os.path.basename(fname))[0]
+    base = _r.sub(r"_\d+_$", "", base)            # drop _NNNNN_
+    base = _r.sub(r"_comfyui\d+$", "", base)     # drop _comfyui<N>
+    for wid in sorted(_KNOWN_WORKFLOW_IDS, key=len, reverse=True):
+        if base.endswith("_" + wid):
+            base = base[: -len(wid) - 1]
+            break
+    base = _r.sub(r"^\d{4}-\d{2}-\d{2}-", "", base)  # drop leading date
+    return _slugify_topic(base)
+
+
+def _topic_from_image_ref(value) -> str:
+    """Extract a topic slug from an image / image_last / audio reference.
+
+    Works whether the value has been resolved to a URL (?filename=...) or is
+    still a bare filename / asset_id-converted URL. asset_id strings produce
+    nothing here (they are UUIDs); resolution is expected to have happened
+    before this point.
+    """
+    if not isinstance(value, str) or not value.strip():
+        return ""
+    import re as _r
+    from urllib.parse import unquote as _unq
+    m = _r.search(r"[?&]filename=([^&]+)", value)
+    fname = _unq(m.group(1)) if m else value
+    return _topic_from_filename(fname)
+
+
 class WorkflowManager:
     def __init__(self, workflows_dir: Path):
         self.workflows_dir = Path(workflows_dir).resolve()
@@ -118,6 +164,8 @@ class WorkflowManager:
         self._workflow_cache: Dict[str, Dict[str, Any]] = {}
         self._workflow_mtime: Dict[str, float] = {}  # Track file modification times for cache invalidation
         self.tool_definitions = self._load_workflows()
+        global _KNOWN_WORKFLOW_IDS
+        _KNOWN_WORKFLOW_IDS = [d.workflow_id for d in self.tool_definitions]
     
     def _safe_workflow_path(self, workflow_id: str) -> Optional[Path]:
         """Resolve workflow ID to file path with path traversal protection"""
@@ -315,8 +363,16 @@ class WorkflowManager:
 
         # Topic-based filename slug (optional; supplied via overrides["topic"])
         try:
+            _topic_explicit2 = overrides.get("topic") or ""
             _fallback = overrides.get("prompt") or overrides.get("tags") or ""
-            _inject_topic_into_filename_prefix(workflow, overrides.get("topic", ""), _fallback)
+            if not (_topic_explicit2 or _fallback):
+                for _img_key in ("image", "image_last", "audio"):
+                    _img = overrides.get(_img_key)
+                    _carry = _topic_from_image_ref(_img) if _img else ""
+                    if _carry:
+                        _fallback = _carry
+                        break
+            _inject_topic_into_filename_prefix(workflow, _topic_explicit2, _fallback)
         except Exception as _topic_err:
             import logging as _lg; _lg.getLogger(__name__).warning(f"topic injection failed: {_topic_err}")
 
@@ -471,10 +527,21 @@ class WorkflowManager:
                 workflow[node_id]["inputs"][input_name] = coerced_value
         
 
-        # Topic-based filename slug (LLM-supplied or auto-derived from prompt/tags)
+        # Topic-based filename slug. Priority:
+        #   1. LLM-supplied topic (best — semantic intent)
+        #   2. Slug derived from prompt / tags
+        #   3. Slug carried over from a source image / image_last / audio reference
         try:
-            _fallback = provided_params.get("prompt") or provided_params.get("tags") or ""
-            _inject_topic_into_filename_prefix(workflow, provided_params.get("topic", "") or "", _fallback)
+            _topic_explicit = provided_params.get("topic", "") or ""
+            _fallback_text = provided_params.get("prompt") or provided_params.get("tags") or ""
+            if not (_topic_explicit or _fallback_text):
+                for _img_key in ("image", "image_last", "audio"):
+                    _img = provided_params.get(_img_key)
+                    _carry = _topic_from_image_ref(_img) if _img else ""
+                    if _carry:
+                        _fallback_text = _carry
+                        break
+            _inject_topic_into_filename_prefix(workflow, _topic_explicit, _fallback_text)
         except Exception as _topic_err:
             logger.warning(f"render_workflow topic injection failed: {_topic_err}")
 
