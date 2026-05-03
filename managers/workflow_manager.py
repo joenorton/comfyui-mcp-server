@@ -383,7 +383,7 @@ class WorkflowManager:
             definition = WorkflowToolDefinition(
                 workflow_id=workflow_path.stem,
                 tool_name=tool_name,
-                description=(self._load_workflow_metadata(workflow_path).get("description") or self._derive_description(workflow_path.stem)) + " Optional 'topic' parameter (1-2 word slug, e.g. 'giraffe' or 'forest_scene') gets baked into the output filename for searchability. Response includes a 'markdown_preview' string — paste it verbatim into your reply to display the result inline.",
+                description=(self._load_workflow_metadata(workflow_path).get("description") or self._derive_description(workflow_path.stem)) + " Always pass 'topic' (1-2 word slug derived from the user's request — e.g. 'giraffe', 'forest_scene', 'product_photo') so the output filename is searchable later. Response includes a 'markdown_preview' string — paste it verbatim into your reply to display the result inline.",
                 template=workflow,
                 parameters=parameters,
                 output_preferences=self._guess_output_preferences(workflow),
