@@ -1,6 +1,7 @@
 """Shared helper functions for tool implementations"""
 
 import logging
+import re
 from typing import Any, Dict, Optional
 
 from asset_processor import encode_preview_for_mcp, fetch_asset_bytes, get_cache_key
@@ -138,3 +139,39 @@ def register_and_build_response(
         response_data["image_mime_type"] = result.get("image_mime_type", "image/png")
     
     return response_data
+
+
+UUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.IGNORECASE)
+KNOWN_SUBFOLDERS = ("", "images", "audio", "video", "mesh")
+
+
+def resolve_asset_reference(value, asset_registry) -> str:
+    """Translate friendlier identifiers (asset_id, bare filename) to a URL.
+
+    Returns the original value unchanged if it's already a URL or doesn't
+    match a known asset.
+    """
+    if not isinstance(value, str):
+        return value
+    v = value.strip()
+    if not v:
+        return value
+    if v.startswith(("http://", "https://")):
+        return v
+    if UUID_RE.match(v):
+        try:
+            rec = asset_registry.get_asset(v)
+        except Exception:
+            rec = None
+        if rec:
+            return rec.asset_url or rec.get_asset_url(asset_registry.comfyui_base_url)
+    if "/" not in v and "\\" not in v:
+        for sub in KNOWN_SUBFOLDERS:
+            try:
+                rec = asset_registry.get_asset_by_identity(v, sub, "output")
+            except Exception:
+                rec = None
+            if rec:
+                return rec.asset_url or rec.get_asset_url(asset_registry.comfyui_base_url)
+    return value
+

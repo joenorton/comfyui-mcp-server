@@ -69,6 +69,15 @@ def register_workflow_generation_tools(
                     # Unknown parameter, pass through
                     coerced_kwargs[key] = value
             
+            # Resolve asset_id / bare filenames in image/audio params to URLs
+            try:
+                from tools.helpers import resolve_asset_reference as _rar
+                for _ref_key in ("image", "image_last", "audio"):
+                    if _ref_key in coerced_kwargs:
+                        coerced_kwargs[_ref_key] = _rar(coerced_kwargs[_ref_key], asset_registry)
+            except Exception as _ref_err:
+                logger.warning(f"asset_reference resolve failed: {_ref_err}")
+
             bound = _tool_impl.__signature__.bind(*args, **coerced_kwargs)
             bound.apply_defaults()
             

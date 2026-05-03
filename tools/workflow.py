@@ -63,6 +63,15 @@ def register_workflow_tools(
         
         try:
             # Apply overrides with constraints
+            # Resolve friendlier identifiers (asset_id, bare filenames) in overrides
+            try:
+                from tools.helpers import resolve_asset_reference as _rar
+                for _ref_key in ("image", "image_last", "audio"):
+                    if _ref_key in overrides:
+                        overrides[_ref_key] = _rar(overrides[_ref_key], asset_registry)
+            except Exception as _ref_err:
+                logger.warning(f"asset_reference resolve failed: {_ref_err}")
+
             workflow = workflow_manager.apply_workflow_overrides(
                 workflow, workflow_id, overrides, defaults_manager
             )
