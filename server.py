@@ -46,6 +46,16 @@ COMFYUI_MAX_DELAY = 16  # Maximum delay in seconds
 # Publish configuration (optional env var for COMFYUI_OUTPUT_ROOT only)
 COMFYUI_OUTPUT_ROOT = os.getenv("COMFYUI_OUTPUT_ROOT")
 
+# Per-workflow tool registration toggle.
+# When false (default), each workflow JSON is reachable only via the
+# run_workflow/list_workflows dispatcher pair — saves ~500 tokens of
+# MCP-tool schema per workflow in client context (≈20k tokens for 40
+# workflows). Set to true to restore the legacy layout where every
+# workflow file becomes its own typed MCP tool (sdxl_t2i, flux_klein_9b_t2i, ...).
+REGISTER_PER_WORKFLOW_TOOLS = os.getenv(
+    "COMFY_MCP_REGISTER_PER_WORKFLOW_TOOLS", "false"
+).lower() in ("1", "true", "yes", "on")
+
 
 def print_startup_banner():
     """Print a nice startup banner for the server."""
@@ -207,7 +217,19 @@ mcp = FastMCP(
 register_configuration_tools(mcp, comfyui_client, defaults_manager)
 register_workflow_tools(mcp, workflow_manager, comfyui_client, defaults_manager, asset_registry)
 register_asset_tools(mcp, asset_registry)
-register_workflow_generation_tools(mcp, workflow_manager, comfyui_client, defaults_manager, asset_registry)
+_workflow_count = len(workflow_manager.tool_definitions) if workflow_manager.tool_definitions else 0
+if REGISTER_PER_WORKFLOW_TOOLS:
+    register_workflow_generation_tools(mcp, workflow_manager, comfyui_client, defaults_manager, asset_registry)
+    logger.info(
+        "Per-workflow tools enabled (COMFY_MCP_REGISTER_PER_WORKFLOW_TOOLS=true) — registering %d workflow tools",
+        _workflow_count,
+    )
+else:
+    logger.info(
+        "Per-workflow tools disabled (default) — %d workflow(s) reachable via run_workflow/list_workflows dispatcher. "
+        "Set COMFY_MCP_REGISTER_PER_WORKFLOW_TOOLS=true to restore the legacy per-workflow tool layout.",
+        _workflow_count,
+    )
 register_regenerate_tool(mcp, comfyui_client, asset_registry)
 register_job_tools(mcp, comfyui_client, asset_registry)
 register_upload_tools(mcp, comfyui_client)

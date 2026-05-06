@@ -183,6 +183,33 @@ bound to `PARAM_IMAGE_LAST` (was duplicating `PARAM_IMAGE`).
 
 Detailed per-fix notes live in the corresponding commit messages.
 
+### 12. Per-workflow tool registration is now opt-in
+
+**File**: `server.py`
+
+Every `*.json` in `workflows/` was previously registered both as a typed
+MCP tool *and* via the existing `run_workflow` / `list_workflows`
+dispatcher. With ~40 workflows that doubles up to ~20k tokens of MCP
+tool-schema context every time a client connects — a meaningful cost on
+top of the dispatcher that already exposes the same capability.
+
+Behavior is now gated on `COMFY_MCP_REGISTER_PER_WORKFLOW_TOOLS` (default
+`false`):
+
+- **`false` (default)**: workflows are reachable through the dispatcher
+  pair only — `list_workflows()` returns the catalog with each workflow's
+  `available_inputs` (name, type, required, description), and
+  `run_workflow(workflow_id, overrides={...})` executes them. Saves
+  ~500 tokens per workflow in client context.
+- **`true`**: legacy layout — every workflow JSON registers as its own
+  typed MCP tool (`sdxl_t2i`, `flux_klein_9b_t2i`, ...) with full
+  parameter schema. Use this if your client benefits from the explicit
+  per-workflow function signatures.
+
+`regenerate` is unaffected and always registered. The dispatcher
+(`run_workflow` / `list_workflows`) is unchanged and was already part of
+the upstream surface — this patch just stops doubling up by default.
+
 ---
 
 ## How to install this fork
