@@ -297,6 +297,7 @@ class WorkflowManager:
         try:
             with open(workflow_path, "r", encoding="utf-8") as f:
                 workflow = json.load(f)
+            _strip_meta(workflow)
             self._workflow_cache[workflow_id] = workflow
             if current_mtime is not None:
                 self._workflow_mtime[workflow_id] = current_mtime
