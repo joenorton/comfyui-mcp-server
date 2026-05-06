@@ -1,12 +1,35 @@
 """Shared helper functions for tool implementations"""
 
 import logging
+import re
 from typing import Any, Dict, Optional
 
 from asset_processor import encode_preview_for_mcp, fetch_asset_bytes, get_cache_key
 
 logger = logging.getLogger("MCP_Server")
 
+
+
+def _format_markdown_preview(asset_url: str, mime_type: Optional[str], filename: str) -> str:
+    """Build a Markdown snippet the LLM can paste verbatim into its reply.
+
+    Image MIMEs → `![alt](url)` which Claude Desktop renders as an inline image.
+    Audio / video / other → labelled link with an emoji hint (Claude Desktop
+    won't inline-render audio/video, so a clickable link is the realistic best).
+    """
+    if not asset_url:
+        return ""
+    mt = (mime_type or "").lower()
+    label = filename or "asset"
+    if mt.startswith("image/"):
+        return f"![{label}]({asset_url})"
+    if mt.startswith("audio/"):
+        return f"[🔊 {label}]({asset_url})"
+    if mt.startswith("video/"):
+        return f"[🎬 {label}]({asset_url})"
+    if mt in ("model/gltf-binary", "model/gltf+json") or filename.lower().endswith((".glb", ".obj", ".gltf")):
+        return f"[🎲 {label}]({asset_url})"
+    return f"[{label}]({asset_url})"
 
 def register_and_build_response(
     result: Dict[str, Any],
@@ -59,7 +82,9 @@ def register_and_build_response(
     )
     
     # Build response data
-    # Use asset_record.asset_url (computed from stable identity)
+    # Use backend_url from pool result if available, so URLs point to the actual backend
+    backend_url = result.get("backend_url", asset_registry.comfyui_base_url)
+    asset_record.set_base_url(backend_url)
     asset_url = asset_record.asset_url or result.get("asset_url", "")
     response_data = {
         "asset_id": asset_record.asset_id,
@@ -74,6 +99,7 @@ def register_and_build_response(
         "width": asset_record.width,
         "height": asset_record.height,
         "bytes_size": asset_record.bytes_size,
+        "markdown_preview": _format_markdown_preview(asset_url, asset_record.mime_type, asset_record.filename),
     }
     
     if tool_name:
@@ -113,3 +139,39 @@ def register_and_build_response(
         response_data["image_mime_type"] = result.get("image_mime_type", "image/png")
     
     return response_data
+
+
+UUID_RE = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", re.IGNORECASE)
+KNOWN_SUBFOLDERS = ("", "images", "audio", "video", "mesh")
+
+
+def resolve_asset_reference(value, asset_registry) -> str:
+    """Translate friendlier identifiers (asset_id, bare filename) to a URL.
+
+    Returns the original value unchanged if it's already a URL or doesn't
+    match a known asset.
+    """
+    if not isinstance(value, str):
+        return value
+    v = value.strip()
+    if not v:
+        return value
+    if v.startswith(("http://", "https://")):
+        return v
+    if UUID_RE.match(v):
+        try:
+            rec = asset_registry.get_asset(v)
+        except Exception:
+            rec = None
+        if rec:
+            return rec.asset_url or rec.get_asset_url(asset_registry.comfyui_base_url)
+    if "/" not in v and "\\" not in v:
+        for sub in KNOWN_SUBFOLDERS:
+            try:
+                rec = asset_registry.get_asset_by_identity(v, sub, "output")
+            except Exception:
+                rec = None
+            if rec:
+                return rec.asset_url or rec.get_asset_url(asset_registry.comfyui_base_url)
+    return value
+

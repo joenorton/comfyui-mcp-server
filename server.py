@@ -13,6 +13,7 @@ import requests
 from mcp.server.fastmcp import FastMCP
 
 from comfyui_client import ComfyUIClient
+from comfyui_pool import ComfyUIPool, parse_backends
 from managers.asset_registry import AssetRegistry
 from managers.defaults_manager import DefaultsManager
 from managers.publish_manager import PublishConfig, PublishManager
@@ -23,6 +24,7 @@ from tools.generation import register_workflow_generation_tools, register_regene
 from tools.job import register_job_tools
 from tools.publish import register_publish_tools
 from tools.workflow import register_workflow_tools
+from tools.upload import register_upload_tools
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -36,12 +38,23 @@ ASSET_TTL_HOURS = int(os.getenv("COMFY_MCP_ASSET_TTL_HOURS", "24"))
 
 # ComfyUI connection configuration
 COMFYUI_URL = os.getenv("COMFYUI_URL", "http://localhost:8188")
+COMFYUI_URLS = os.getenv("COMFYUI_URLS", "")
 COMFYUI_MAX_RETRIES = 5  # Number of retry attempts
 COMFYUI_INITIAL_DELAY = 2  # Initial delay in seconds
 COMFYUI_MAX_DELAY = 16  # Maximum delay in seconds
 
 # Publish configuration (optional env var for COMFYUI_OUTPUT_ROOT only)
 COMFYUI_OUTPUT_ROOT = os.getenv("COMFYUI_OUTPUT_ROOT")
+
+# Per-workflow tool registration toggle.
+# When false (default), each workflow JSON is reachable only via the
+# run_workflow/list_workflows dispatcher pair — saves ~500 tokens of
+# MCP-tool schema per workflow in client context (≈20k tokens for 40
+# workflows). Set to true to restore the legacy layout where every
+# workflow file becomes its own typed MCP tool (sdxl_t2i, flux_klein_9b_t2i, ...).
+REGISTER_PER_WORKFLOW_TOOLS = os.getenv(
+    "COMFY_MCP_REGISTER_PER_WORKFLOW_TOOLS", "false"
+).lower() in ("1", "true", "yes", "on")
 
 
 def print_startup_banner():
@@ -119,19 +132,28 @@ def wait_for_comfyui(base_url: str, max_retries: int = COMFYUI_MAX_RETRIES,
 # Print startup banner
 print_startup_banner()
 
+# Determine primary URL for startup check
+_check_url = COMFYUI_URL
+if COMFYUI_URLS:
+    from comfyui_pool import parse_backends as _parse_backends
+    _check_url = next(iter(_parse_backends(COMFYUI_URLS).values()))
+
 # Check ComfyUI availability before initializing clients
-if not check_comfyui_available(COMFYUI_URL):
-    if not wait_for_comfyui(COMFYUI_URL):
+if not check_comfyui_available(_check_url):
+    if not wait_for_comfyui(_check_url):
         print("\n" + "=" * 70)
         print("[X] ERROR: ComfyUI is not available after all retry attempts!")
         print("=" * 70)
-        print(f"  Please ensure ComfyUI is running at: {COMFYUI_URL}")
+        print(f"  Please ensure ComfyUI is running at: {_check_url}")
         print("  Start ComfyUI first, then restart this server.")
         print("=" * 70 + "\n")
         sys.exit(1)
 
-# Global ComfyUI client (fallback since context isn't available)
-comfyui_client = ComfyUIClient(COMFYUI_URL)
+# Global ComfyUI client — pool if COMFYUI_URLS set, single client otherwise
+if COMFYUI_URLS:
+    comfyui_client = ComfyUIPool(parse_backends(COMFYUI_URLS))
+else:
+    comfyui_client = ComfyUIClient(COMFYUI_URL)
 workflow_manager = WorkflowManager(WORKFLOW_DIR)
 defaults_manager = DefaultsManager(comfyui_client)
 asset_registry = AssetRegistry(ttl_hours=ASSET_TTL_HOURS, comfyui_base_url=COMFYUI_URL)
@@ -186,6 +208,7 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[AppContext]:
 mcp = FastMCP(
     "ComfyUI_MCP_Server",
     lifespan=app_lifespan,
+    host="0.0.0.0",
     port=9000,
     stateless_http=True
 )
@@ -194,9 +217,22 @@ mcp = FastMCP(
 register_configuration_tools(mcp, comfyui_client, defaults_manager)
 register_workflow_tools(mcp, workflow_manager, comfyui_client, defaults_manager, asset_registry)
 register_asset_tools(mcp, asset_registry)
-register_workflow_generation_tools(mcp, workflow_manager, comfyui_client, defaults_manager, asset_registry)
+_workflow_count = len(workflow_manager.tool_definitions) if workflow_manager.tool_definitions else 0
+if REGISTER_PER_WORKFLOW_TOOLS:
+    register_workflow_generation_tools(mcp, workflow_manager, comfyui_client, defaults_manager, asset_registry)
+    logger.info(
+        "Per-workflow tools enabled (COMFY_MCP_REGISTER_PER_WORKFLOW_TOOLS=true) — registering %d workflow tools",
+        _workflow_count,
+    )
+else:
+    logger.info(
+        "Per-workflow tools disabled (default) — %d workflow(s) reachable via run_workflow/list_workflows dispatcher. "
+        "Set COMFY_MCP_REGISTER_PER_WORKFLOW_TOOLS=true to restore the legacy per-workflow tool layout.",
+        _workflow_count,
+    )
 register_regenerate_tool(mcp, comfyui_client, asset_registry)
 register_job_tools(mcp, comfyui_client, asset_registry)
+register_upload_tools(mcp, comfyui_client)
 # Always register publish tools (unconditional)
 if publish_manager:
     register_publish_tools(mcp, asset_registry, publish_manager)

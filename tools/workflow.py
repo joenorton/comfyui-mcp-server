@@ -37,7 +37,8 @@ def register_workflow_tools(
         workflow_id: str,
         overrides: Optional[Dict[str, Any]] = None,
         options: Optional[Dict[str, Any]] = None,
-        return_inline_preview: bool = False
+        return_inline_preview: bool = False,
+        backend: Optional[str] = None
     ) -> dict:
         """Run a saved ComfyUI workflow with constrained parameter overrides.
         
@@ -46,6 +47,7 @@ def register_workflow_tools(
             overrides: Optional dict of parameter overrides (e.g., {"prompt": "a cat", "width": 1024})
             options: Optional dict of execution options (reserved for future use)
             return_inline_preview: If True, include a small thumbnail base64 in response (256px, ~100KB)
+            backend: Optional backend name (e.g., "comfy1", "comfy2") for explicit routing
         
         Returns:
             Result with asset_url, workflow_id, and execution metadata. If return_inline_preview=True,
@@ -61,6 +63,15 @@ def register_workflow_tools(
         
         try:
             # Apply overrides with constraints
+            # Resolve friendlier identifiers (asset_id, bare filenames) in overrides
+            try:
+                from tools.helpers import resolve_asset_reference as _rar
+                for _ref_key in ("image", "image_last", "audio"):
+                    if _ref_key in overrides:
+                        overrides[_ref_key] = _rar(overrides[_ref_key], asset_registry)
+            except Exception as _ref_err:
+                logger.warning(f"asset_reference resolve failed: {_ref_err}")
+
             workflow = workflow_manager.apply_workflow_overrides(
                 workflow, workflow_id, overrides, defaults_manager
             )
@@ -74,6 +85,7 @@ def register_workflow_tools(
             # Execute workflow
             result = comfyui_client.run_custom_workflow(
                 workflow,
+                backend=backend,
                 preferred_output_keys=output_preferences,
             )
 

@@ -93,7 +93,7 @@
   },
   "9": {
     "inputs": {
-      "filename_prefix": "ComfyUI",
+      "filename_prefix": "images/%date:yyyy-MM-dd%-sdxl_t2i",
       "images": [
         "8",
         0
@@ -103,5 +103,8 @@
     "_meta": {
       "title": "Save Image"
     }
+  },
+  "_meta": {
+    "description": "~30s \u00b7 1024\u00d71024 \u00b7 Versatile SDXL text-to-image; model-swappable (default: JuggernautXL). Good for photorealistic and artistic styles. Params: prompt, model, width, height."
   }
 }

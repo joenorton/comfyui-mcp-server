@@ -47,6 +47,7 @@ class ComfyUIClient:
                     return []
                 models = ckpt_name_info[0] if isinstance(ckpt_name_info[0], list) else ckpt_name_info
                 logger.info(f"Available models: {models}")
+                logger.info(f"Available models: {models}")
                 return models
             except (KeyError, IndexError, TypeError) as e:
                 logger.warning(f"Unexpected API response structure: {e}")
@@ -59,6 +60,8 @@ class ComfyUIClient:
         if preferred_output_keys is None:
             preferred_output_keys = ("images", "image", "gifs", "gif", "audio", "audios", "files")
 
+        workflow = self._resolve_image_urls_in_workflow(workflow)
+        workflow = self._resolve_model_names_in_workflow(workflow)
         prompt_id = self._queue_workflow(workflow)
         outputs = self._wait_for_prompt(prompt_id, max_attempts=max_attempts)
 
@@ -515,3 +518,70 @@ class ComfyUIClient:
         except requests.RequestException as e:
             logger.error(f"Failed to cancel prompt {prompt_id}: {e}")
             raise Exception(f"Failed to cancel prompt: {e}")
+    def upload_image_from_url(self, url: str) -> str:
+        """Download image from URL and upload to ComfyUI input folder. Returns the uploaded filename."""
+        import io
+        logger.info(f"Uploading image from URL: {url}")
+        resp = requests.get(url, timeout=30)
+        resp.raise_for_status()
+        fname = url.split("filename=")[-1].split("&")[0] if "filename=" in url else "input_image.png"
+        files = {"image": (fname, io.BytesIO(resp.content), resp.headers.get("Content-Type", "image/png"))}
+        upload_resp = requests.post(f"{self.base_url}/upload/image", files=files, timeout=30)
+        upload_resp.raise_for_status()
+        data = upload_resp.json()
+        uploaded_name = data.get("name", fname)
+        logger.info(f"Uploaded image as: {uploaded_name}")
+        return uploaded_name
+
+    def upload_audio_from_url(self, url: str) -> str:
+        """Download audio from URL and upload to ComfyUI input folder. Returns the uploaded filename."""
+        import io
+        logger.info(f"Uploading audio from URL: {url}")
+        resp = requests.get(url, timeout=30)
+        resp.raise_for_status()
+        fname = url.split("filename=")[-1].split("&")[0] if "filename=" in url else "input_audio.mp3"
+        files = {"image": (fname, io.BytesIO(resp.content), resp.headers.get("Content-Type", "audio/mpeg"))}
+        upload_resp = requests.post(f"{self.base_url}/upload/image", files=files, timeout=30)
+        upload_resp.raise_for_status()
+        data = upload_resp.json()
+        uploaded_name = data.get("name", fname)
+        logger.info(f"Uploaded audio as: {uploaded_name}")
+        return uploaded_name
+
+    def _resolve_model_names_in_workflow(self, workflow: dict) -> dict:
+        # Resolve model names to backend-native path separators (/ vs \\)
+        if not self.available_models:
+            return workflow
+        import copy
+        norm_map = {m.replace("\\", "/"): m for m in self.available_models}
+        def resolve(v):
+            if isinstance(v, str) and ("/" in v or "\\" in v):
+                return norm_map.get(v.replace("\\", "/"), v)
+            return v
+        workflow = copy.deepcopy(workflow)
+        for node in workflow.values():
+            if isinstance(node, dict):
+                inputs = node.get("inputs", {})
+                for k in list(inputs):
+                    inputs[k] = resolve(inputs[k])
+        return workflow
+
+    def _resolve_image_urls_in_workflow(self, workflow: dict) -> dict:
+        """For any LoadImage/LoadAudio node with a URL input, upload and replace with filename."""
+        image_node_types = {"LoadImage", "LoadImageMask", "ETN_LoadImageBase64"}
+        audio_node_types = {"LoadAudio"}
+        for node_id, node in workflow.items():
+            if not isinstance(node, dict):
+                continue
+            cls = node.get("class_type")
+            inp = node.get("inputs", {})
+            if cls in image_node_types:
+                val = inp.get("image", "")
+                if isinstance(val, str) and val.startswith(("http://", "https://")):
+                    inp["image"] = self.upload_image_from_url(val)
+            elif cls in audio_node_types:
+                val = inp.get("audio", "")
+                if isinstance(val, str) and val.startswith(("http://", "https://")):
+                    inp["audio"] = self.upload_audio_from_url(val)
+        return workflow
+

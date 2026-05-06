@@ -43,6 +43,131 @@ PLACEHOLDER_DESCRIPTIONS = {
 DEFAULT_OUTPUT_KEYS = ("images", "image", "gifs", "gif")
 AUDIO_OUTPUT_KEYS = ("audio", "audios", "sound", "files")
 VIDEO_OUTPUT_KEYS = ("videos", "video", "mp4", "mov", "webm")
+MESH_OUTPUT_KEYS = ("3d", "mesh", "glb", "gltf", "obj")
+
+
+
+
+import re as _topic_re
+
+_TOPIC_DATE_TOKEN = _topic_re.compile(r"(%date:[^%]+%-)")
+
+
+def _slugify_topic(value: str) -> str:
+    """Lower-case, alnum + underscore only, length-capped."""
+    if not isinstance(value, str):
+        return ""
+    s = _topic_re.sub(r"[^A-Za-z0-9]+", "_", value.strip()).strip("_").lower()
+    return s[:30]
+
+
+_TOPIC_STOPWORDS = {
+    "a", "an", "the", "of", "in", "on", "at", "with", "for", "to",
+    "is", "are", "was", "were", "be", "been", "being", "this", "that",
+    "these", "those", "it", "its", "there", "by", "as", "from", "or",
+    "and", "but", "not", "no", "into", "onto", "out", "up", "down",
+    "over", "under", "some", "any", "all", "each", "very", "really",
+    "realistic", "photo", "photograph", "image", "picture", "render",
+    "generate", "create", "make", "give", "show",
+}
+
+
+def _auto_topic_from_text(text: str) -> str:
+    """Derive a slug from a prompt-like string when the LLM skipped 'topic'.
+
+    Strategy: lowercase, take alphabetic tokens, drop English stopwords + a few
+    generic 'image'-type words, keep the first 2-3 surviving tokens.
+    """
+    if not isinstance(text, str) or not text.strip():
+        return ""
+    tokens = _topic_re.findall(r"[A-Za-z]+", text.lower())
+    keep = [t for t in tokens if t not in _TOPIC_STOPWORDS]
+    if not keep:
+        return ""
+    return _slugify_topic("_".join(keep[:3]))
+
+
+def _inject_topic_into_filename_prefix(workflow: dict, topic: str, fallback_text: str = "") -> None:
+    """Mutate workflow in place: insert `<topic>_` after the date token in
+    every Save* node's filename_prefix.
+
+    If `topic` is empty, derive a slug from `fallback_text` (typically the
+    workflow's prompt / tags). No-op if both are empty or the pattern is missing.
+    """
+    slug = _slugify_topic(topic) or _auto_topic_from_text(fallback_text)
+    if not slug:
+        return
+    for node in workflow.values():
+        if not isinstance(node, dict):
+            continue
+        inp = node.get("inputs", {})
+        fp = inp.get("filename_prefix")
+        if not isinstance(fp, str):
+            continue
+        if "%date:" not in fp:
+            continue
+        # Skip if slug is already there (idempotent)
+        if f"{slug}_" in fp:
+            continue
+        inp["filename_prefix"] = _TOPIC_DATE_TOKEN.sub(rf"\1{slug}_", fp, count=1)
+
+
+
+
+# Workflow IDs are appended at the end of legacy filenames; we strip them when
+# back-deriving a slug from a source asset filename. Filled lazily by
+# WorkflowManager when it loads workflows.
+_KNOWN_WORKFLOW_IDS: list = []
+
+
+def _topic_from_filename(fname: str) -> str:
+    """Best-effort extraction of the topic slug from a source asset filename.
+
+    Pattern emitted by this server: <date>-<topic>?<workflow_id>_comfyui<N>_<NNNNN>_.<ext>
+    Strip the known suffixes and date prefix; whatever remains is the topic
+    (or empty when none was baked in).
+    """
+    if not isinstance(fname, str) or not fname.strip():
+        return ""
+    import os as _os, re as _r
+    base = _os.path.splitext(_os.path.basename(fname))[0]
+    base = _r.sub(r"_\d+_$", "", base)            # drop _NNNNN_
+    base = _r.sub(r"_comfyui\d+$", "", base)     # drop _comfyui<N>
+    for wid in sorted(_KNOWN_WORKFLOW_IDS, key=len, reverse=True):
+        if base.endswith("_" + wid):
+            base = base[: -len(wid) - 1]
+            break
+    base = _r.sub(r"^\d{4}-\d{2}-\d{2}-", "", base)  # drop leading date
+    return _slugify_topic(base)
+
+
+def _topic_from_image_ref(value) -> str:
+    """Extract a topic slug from an image / image_last / audio reference.
+
+    Works whether the value has been resolved to a URL (?filename=...) or is
+    still a bare filename / asset_id-converted URL. asset_id strings produce
+    nothing here (they are UUIDs); resolution is expected to have happened
+    before this point.
+    """
+    if not isinstance(value, str) or not value.strip():
+        return ""
+    import re as _r
+    from urllib.parse import unquote as _unq
+    m = _r.search(r"[?&]filename=([^&]+)", value)
+    fname = _unq(m.group(1)) if m else value
+    return _topic_from_filename(fname)
+
+
+
+
+def _strip_meta(workflow):
+    """Remove our metadata key from a workflow dict before passing it through
+    the rest of the pipeline. ComfyUI's /prompt validator only looks at node
+    entries (dicts with class_type), but it's cleaner to never let it see
+    our extra key in the first place."""
+    if isinstance(workflow, dict):
+        workflow.pop("_meta", None)
+    return workflow
 
 
 class WorkflowManager:
@@ -52,6 +177,8 @@ class WorkflowManager:
         self._workflow_cache: Dict[str, Dict[str, Any]] = {}
         self._workflow_mtime: Dict[str, float] = {}  # Track file modification times for cache invalidation
         self.tool_definitions = self._load_workflows()
+        global _KNOWN_WORKFLOW_IDS
+        _KNOWN_WORKFLOW_IDS = [d.workflow_id for d in self.tool_definitions]
     
     def _safe_workflow_path(self, workflow_id: str) -> Optional[Path]:
         """Resolve workflow ID to file path with path traversal protection"""
@@ -75,15 +202,20 @@ class WorkflowManager:
         return workflow_path if workflow_path.exists() else None
     
     def _load_workflow_metadata(self, workflow_path: Path) -> Dict[str, Any]:
-        """Load sidecar metadata file if it exists"""
-        metadata_path = workflow_path.with_suffix(".meta.json")
-        if metadata_path.exists():
-            try:
-                with open(metadata_path, "r", encoding="utf-8") as f:
-                    return json.load(f)
-            except (json.JSONDecodeError, IOError) as e:
-                logger.warning(f"Failed to load metadata for {workflow_path.name}: {e}")
-        return {}
+        """Read the workflow JSON's top-level "_meta" key.
+
+        Metadata used to live in a sibling <id>.meta.json sidecar. It now
+        lives inside the workflow JSON itself under a "_meta" key, kept
+        out of the prompt graph by the submit-time strip below.
+        """
+        try:
+            with open(workflow_path, "r", encoding="utf-8") as f:
+                wf = json.load(f)
+        except (json.JSONDecodeError, IOError) as e:
+            logger.warning(f"Failed to read workflow {workflow_path.name}: {e}")
+            return {}
+        meta = wf.get("_meta") if isinstance(wf, dict) else None
+        return meta if isinstance(meta, dict) else {}
     
     def get_workflow_catalog(self) -> list[Dict[str, Any]]:
         """Get catalog of all available workflows"""
@@ -100,6 +232,7 @@ class WorkflowManager:
             try:
                 with open(workflow_path, "r", encoding="utf-8") as f:
                     workflow = json.load(f)
+                _strip_meta(workflow)
             except (json.JSONDecodeError, IOError) as e:
                 logger.warning(f"Skipping {workflow_path.name}: {e}")
                 continue
@@ -164,6 +297,7 @@ class WorkflowManager:
         try:
             with open(workflow_path, "r", encoding="utf-8") as f:
                 workflow = json.load(f)
+            _strip_meta(workflow)
             self._workflow_cache[workflow_id] = workflow
             if current_mtime is not None:
                 self._workflow_mtime[workflow_id] = current_mtime
@@ -246,6 +380,49 @@ class WorkflowManager:
                             if node_id in workflow and "inputs" in workflow[node_id]:
                                 workflow[node_id]["inputs"][input_name] = default_value
 
+
+        # Topic-based filename slug (optional; supplied via overrides["topic"])
+        try:
+            _topic_explicit2 = overrides.get("topic") or ""
+            _fallback = overrides.get("prompt") or overrides.get("tags") or ""
+            if not (_topic_explicit2 or _fallback):
+                for _img_key in ("image", "image_last", "audio"):
+                    _img = overrides.get(_img_key)
+                    _carry = _topic_from_image_ref(_img) if _img else ""
+                    if _carry:
+                        _fallback = _carry
+                        break
+            _inject_topic_into_filename_prefix(workflow, _topic_explicit2, _fallback)
+        except Exception as _topic_err:
+            import logging as _lg; _lg.getLogger(__name__).warning(f"topic injection failed: {_topic_err}")
+
+        # Substitute %date:...% patterns in filename_prefix fields
+        import re as _re
+        from datetime import date as _date
+        _today = _date.today().strftime('%Y-%m-%d')
+        for _node in workflow.values():
+            if not isinstance(_node, dict):
+                continue
+            _inp = _node.get('inputs', {})
+            if 'filename_prefix' in _inp and isinstance(_inp['filename_prefix'], str):
+                _inp['filename_prefix'] = _re.sub(r'%date:[^%]+%', _today, _inp['filename_prefix'])
+
+        # Replace any PARAM_* placeholders not covered by overrides/defaults
+        for node in workflow.values():
+            if not isinstance(node, dict):
+                continue
+            for input_name, val in list(node.get("inputs", {}).items()):
+                if not isinstance(val, str) or not val.startswith("PARAM_"):
+                    continue
+                upper = val.upper()
+                if "SEED" in upper or ("INT" in upper and "SEED" in upper):
+                    node["inputs"][input_name] = random.randint(0, 2**31 - 1)
+                elif upper.startswith("PARAM_INT_"):
+                    node["inputs"][input_name] = 0
+                elif upper.startswith("PARAM_FLOAT_"):
+                    node["inputs"][input_name] = 1.0
+                # PARAM_PROMPT, PARAM_IMAGE etc. left as-is — required, will error properly
+
         # Store the report on the workflow dict so callers can access it
         # (using a private key that won't conflict with node IDs which are numeric strings)
         workflow["__override_report__"] = {
@@ -289,9 +466,12 @@ class WorkflowManager:
             return definitions
 
         for workflow_path in sorted(self.workflows_dir.glob("*.json")):
+            if workflow_path.name.endswith(".meta.json"):
+                continue
             try:
                 with open(workflow_path, "r", encoding="utf-8") as handle:
                     workflow = json.load(handle)
+                _strip_meta(workflow)
             except json.JSONDecodeError as exc:
                 logger.error("Skipping workflow %s due to JSON error: %s", workflow_path.name, exc)
                 continue
@@ -309,7 +489,7 @@ class WorkflowManager:
             definition = WorkflowToolDefinition(
                 workflow_id=workflow_path.stem,
                 tool_name=tool_name,
-                description=self._derive_description(workflow_path.stem),
+                description=(self._load_workflow_metadata(workflow_path).get("description") or self._derive_description(workflow_path.stem)) + " Always pass 'topic' (1-2 word slug derived from the user's request — e.g. 'giraffe', 'forest_scene', 'product_photo') so the output filename is searchable later. Response includes a 'markdown_preview' string — paste it verbatim into your reply to display the result inline.",
                 template=workflow,
                 parameters=parameters,
                 output_preferences=self._guess_output_preferences(workflow),
@@ -349,7 +529,7 @@ class WorkflowManager:
             if raw_value is None:
                 if param.name == "seed" and param.annotation is int:
                     # Special handling for seed - generate random
-                    raw_value = random.randint(0, 2**32 - 1)
+                    raw_value = random.randint(0, 2**31 - 1)
                     logger.debug(f"Generated random seed: {raw_value}")
                 elif defaults_manager:
                     # Use defaults manager to get value with proper precedence
@@ -367,6 +547,36 @@ class WorkflowManager:
             for node_id, input_name in param.bindings:
                 workflow[node_id]["inputs"][input_name] = coerced_value
         
+
+        # Topic-based filename slug. Priority:
+        #   1. LLM-supplied topic (best — semantic intent)
+        #   2. Slug derived from prompt / tags
+        #   3. Slug carried over from a source image / image_last / audio reference
+        try:
+            _topic_explicit = provided_params.get("topic", "") or ""
+            _fallback_text = provided_params.get("prompt") or provided_params.get("tags") or ""
+            if not (_topic_explicit or _fallback_text):
+                for _img_key in ("image", "image_last", "audio"):
+                    _img = provided_params.get(_img_key)
+                    _carry = _topic_from_image_ref(_img) if _img else ""
+                    if _carry:
+                        _fallback_text = _carry
+                        break
+            _inject_topic_into_filename_prefix(workflow, _topic_explicit, _fallback_text)
+        except Exception as _topic_err:
+            logger.warning(f"render_workflow topic injection failed: {_topic_err}")
+
+        # Substitute %date:...% patterns in filename_prefix fields
+        import re as _re
+        from datetime import date as _date
+        _today = _date.today().strftime('%Y-%m-%d')
+        for _node in workflow.values():
+            if not isinstance(_node, dict):
+                continue
+            _inp = _node.get('inputs', {})
+            if 'filename_prefix' in _inp and isinstance(_inp['filename_prefix'], str):
+                _inp['filename_prefix'] = _re.sub(r'%date:[^%]+%', _today, _inp['filename_prefix'])
+
         return workflow
 
     def _extract_parameters(self, workflow: Dict[str, Any]):
@@ -451,12 +661,15 @@ class WorkflowManager:
 
     def _determine_namespace(self, workflow_id: str) -> str:
         """Determine namespace based on workflow ID."""
-        if workflow_id == "generate_song":
+        wid = workflow_id.lower()
+        audio_patterns = ("_t2a", "_i2a", "song", "audio")
+        video_patterns = ("_t2v", "_i2v", "_d2v", "_fl2v", "_vid", "video")
+        if any(p in wid for p in audio_patterns):
             return "audio"
-        elif workflow_id == "generate_video":
+        elif any(p in wid for p in video_patterns):
             return "video"
         else:
-            return "image"  # default fallback
+            return "image"
     
     def _guess_output_preferences(self, workflow: Dict[str, Any]):
         for node in workflow.values():
@@ -465,6 +678,8 @@ class WorkflowManager:
                 return AUDIO_OUTPUT_KEYS
             if "video" in class_type or "savevideo" in class_type or "videocombine" in class_type:
                 return VIDEO_OUTPUT_KEYS
+            if "mesh" in class_type or "3d" in class_type or "hy3d" in class_type or "hunyuan3d" in class_type:
+                return MESH_OUTPUT_KEYS
         return DEFAULT_OUTPUT_KEYS
 
     def _coerce_value(self, value: Any, annotation: type):

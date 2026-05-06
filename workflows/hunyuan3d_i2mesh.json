@@ -1,0 +1,122 @@
+{
+  "1": {
+    "class_type": "ImageOnlyCheckpointLoader",
+    "inputs": {
+      "ckpt_name": "hunyuan_3d_v2.1.safetensors"
+    }
+  },
+  "2": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "PARAM_IMAGE",
+      "upload": "image"
+    }
+  },
+  "3": {
+    "class_type": "ModelSamplingAuraFlow",
+    "inputs": {
+      "model": [
+        "1",
+        0
+      ],
+      "shift": 1
+    }
+  },
+  "7": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": [
+        "3",
+        0
+      ],
+      "positive": [
+        "6",
+        0
+      ],
+      "negative": [
+        "6",
+        1
+      ],
+      "latent_image": [
+        "4",
+        0
+      ],
+      "seed": "PARAM_INT_SEED",
+      "steps": 30,
+      "cfg": 5,
+      "sampler_name": "euler",
+      "scheduler": "normal",
+      "denoise": 1
+    }
+  },
+  "10": {
+    "class_type": "SaveGLB",
+    "inputs": {
+      "mesh": [
+        "9",
+        0
+      ],
+      "filename_prefix": "mesh/%date:yyyy-MM-dd%-hunyuan3d_i2mesh",
+      "image": ""
+    }
+  },
+  "8": {
+    "class_type": "VAEDecodeHunyuan3D",
+    "inputs": {
+      "samples": [
+        "7",
+        0
+      ],
+      "vae": [
+        "1",
+        2
+      ],
+      "num_chunks": 8000,
+      "octree_resolution": 256
+    }
+  },
+  "9": {
+    "class_type": "VoxelToMesh",
+    "inputs": {
+      "voxel": [
+        "8",
+        0
+      ],
+      "algorithm": "surface net",
+      "threshold": 0.6
+    }
+  },
+  "13": {
+    "class_type": "CLIPVisionEncode",
+    "inputs": {
+      "clip_vision": [
+        "1",
+        1
+      ],
+      "image": [
+        "2",
+        0
+      ],
+      "crop": "center"
+    }
+  },
+  "6": {
+    "class_type": "Hunyuan3Dv2Conditioning",
+    "inputs": {
+      "clip_vision_output": [
+        "13",
+        0
+      ]
+    }
+  },
+  "4": {
+    "class_type": "EmptyLatentHunyuan3Dv2",
+    "inputs": {
+      "resolution": 4096,
+      "batch_size": 1
+    }
+  },
+  "_meta": {
+    "description": "~3-5 min \u00b7 GLB mesh \u00b7 Hunyuan3D 2.1 single-view image-to-3D-mesh. Output: downloadable .glb file. Param: image."
+  }
+}

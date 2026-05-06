@@ -1,0 +1,483 @@
+{
+  "5185": {
+    "class_type": "EmptyImage",
+    "inputs": {
+      "width": 1920,
+      "height": 1088,
+      "batch_size": 1,
+      "color": 0
+    }
+  },
+  "5186": {
+    "class_type": "PrimitiveInt",
+    "inputs": {
+      "value": 121
+    }
+  },
+  "5196": {
+    "class_type": "CM_FloatToInt",
+    "inputs": {
+      "a": [
+        "5184",
+        0
+      ]
+    }
+  },
+  "5190": {
+    "class_type": "CreateVideo",
+    "inputs": {
+      "images": [
+        "5189_5245",
+        0
+      ],
+      "fps": [
+        "5184",
+        0
+      ],
+      "audio": [
+        "5189_5103",
+        0
+      ]
+    }
+  },
+  "4958": {
+    "class_type": "SaveVideo",
+    "inputs": {
+      "video": [
+        "5190",
+        0
+      ],
+      "filename_prefix": "video/%date:yyyy-MM-dd%-ltx2_i2v_cam"
+    }
+  },
+  "5184": {
+    "class_type": "PrimitiveFloat",
+    "inputs": {
+      "value": 24
+    }
+  },
+  "5176": {
+    "class_type": "CheckpointLoaderSimple",
+    "inputs": {
+      "ckpt_name": "ltx-2-19b-distilled.safetensors"
+    }
+  },
+  "5188": {
+    "class_type": "LTXVAudioVAELoader",
+    "inputs": {}
+  },
+  "5174": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "PARAM_PROMPT",
+      "clip": [
+        "5178",
+        0
+      ]
+    }
+  },
+  "5173": {
+    "class_type": "LTXVConditioning",
+    "inputs": {
+      "positive": [
+        "5174",
+        0
+      ],
+      "negative": [
+        "5174",
+        0
+      ],
+      "frame_rate": [
+        "5184",
+        0
+      ]
+    }
+  },
+  "5210": {
+    "class_type": "LatentUpscaleModelLoader",
+    "inputs": {}
+  },
+  "5192": {
+    "class_type": "LTXVGemmaEnhancePrompt",
+    "inputs": {
+      "clip": [
+        "5178",
+        0
+      ],
+      "prompt": [
+        "5175",
+        0
+      ],
+      "system_prompt": "You are a Creative Assistant writing concise, action-focused image-to-video prompts. Given an image (first frame) and user Raw Input Prompt, generate a prompt to guide video generation from that image.\n\n#### Guidelines:\n- Analyze the Image: Identify Subject, Setting, Elements, Style and Mood.\n- Follow user Raw Input Prompt: Include all requested motion, actions, camera movements, audio, and details. If in conflict with the image, prioritize user request while maintaining visual consistency (describe transition from image to user's scene).\n- Describe only changes from the image: Don't reiterate established visual details. Inaccurate descriptions may cause scene cuts.\n- Active language: Use present-progressive verbs (\"is walking,\" \"speaking\"). If no action specified, describe natural movements.\n- Chronological flow: Use temporal connectors (\"as,\" \"then,\" \"while\").\n- Audio layer: Describe complete soundscape throughout the prompt alongside actions\u2014NOT at the end. Align audio intensity with action tempo. Include natural background audio, ambient sounds, effects, speech or music (when requested). Be specific (e.g., \"soft footsteps on tile\") not vague (e.g., \"ambient sound\").\n- Speech (only when requested): Provide exact words in quotes with character's visual/voice characteristics (e.g., \"The tall man speaks in a low, gravelly voice\"), language if not English and accent if relevant. If general conversation mentioned without text, generate contextual quoted dialogue. (i.e., \"The man is talking\" input -> the output should include exact spoken words, like: \"The man is talking in an excited voice saying: 'You won't believe what I just saw!' His hands gesture expressively as he speaks, eyebrows raised with enthusiasm. The ambient sound of a quiet room underscores his animated speech.\")\n- Style: Include visual style at beginning: \"Style: <style>, <rest of prompt>.\" If unclear, omit to avoid conflicts.\n- Visual and audio only: Describe only what is seen and heard. NO smell, taste, or tactile sensations.\n- Restrained language: Avoid dramatic terms. Use mild, natural, understated phrasing.\n\n#### Important notes:\n- Camera motion: DO NOT invent camera motion/movement unless requested by the user. Make sure to include camera motion only if specified in the input.\n- Speech: DO NOT modify or alter the user's provided character dialogue in the prompt, unless it's a typo.\n- No timestamps or cuts: DO NOT use timestamps or describe scene cuts unless explicitly requested.\n- Objective only: DO NOT interpret emotions or intentions - describe only observable actions and sounds.\n- Format: DO NOT use phrases like \"The scene opens with...\" / \"The video starts...\". Start directly with Style (optional) and chronological scene description.\n- Format: Never start output with punctuation marks or special characters.\n- DO NOT invent dialogue unless the user mentions speech/talking/singing/conversation.\n- Your performance is CRITICAL. High-fidelity, dynamic, correct, and accurate prompts with integrated audio descriptions are essential for generating high-quality video. Your goal is flawless execution of these rules.\n\n#### Output Format (Strict):\n- Single concise paragraph in natural English. NO titles, headings, prefaces, sections, code fences, or Markdown.\n- If unsafe/invalid, return original user prompt. Never ask questions or clarifications.\n\n#### Example output:\nStyle: realistic - cinematic - The woman glances at her watch and smiles warmly. She speaks in a cheerful, friendly voice, \"I think we're right on time!\" In the background, a caf\u00e9 barista prepares drinks at the counter. The barista calls out in a clear, upbeat tone, \"Two cappuccinos ready!\" The sound of the espresso machine hissing softly blends with gentle background chatter and the light clinking of cups on saucers.",
+      "max_tokens": 512,
+      "bypass_i2v": false,
+      "image": [
+        "5180",
+        0
+      ],
+      "seed": 42
+    }
+  },
+  "5178": {
+    "class_type": "LTXVGemmaCLIPModelLoader",
+    "inputs": {
+      "gemma_path": "gemma_3_12B_it_fp4_mixed.safetensors",
+      "ltxv_path": "ltx-2-19b-distilled-fp8.safetensors",
+      "max_length": 1024
+    }
+  },
+  "5175": {
+    "class_type": "PrimitiveStringMultiline",
+    "inputs": {
+      "value": "PARAM_PROMPT"
+    }
+  },
+  "5180": {
+    "class_type": "LoadImage",
+    "inputs": {
+      "image": "PARAM_IMAGE"
+    }
+  },
+  "5189_5114": {
+    "class_type": "LTXVSeparateAVLatent",
+    "inputs": {
+      "av_latent": [
+        "5189_5107",
+        1
+      ]
+    }
+  },
+  "5189_5108": {
+    "class_type": "LTXVConcatAVLatent",
+    "inputs": {
+      "video_latent": [
+        "5189_5254",
+        0
+      ],
+      "audio_latent": [
+        "5189_5152",
+        0
+      ]
+    }
+  },
+  "5189_5107": {
+    "class_type": "SamplerCustomAdvanced",
+    "inputs": {
+      "noise": [
+        "5189_5111",
+        0
+      ],
+      "guider": [
+        "5189_5110",
+        0
+      ],
+      "sampler": [
+        "5189_5109",
+        0
+      ],
+      "sigmas": [
+        "5189_5232",
+        0
+      ],
+      "latent_image": [
+        "5189_5108",
+        0
+      ]
+    }
+  },
+  "5189_5232": {
+    "class_type": "ManualSigmas",
+    "inputs": {
+      "sigmas": "1., 0.99375, 0.9875, 0.98125, 0.975, 0.909375, 0.725, 0.421875, 0.0"
+    }
+  },
+  "5189_5100": {
+    "class_type": "SamplerCustomAdvanced",
+    "inputs": {
+      "noise": [
+        "5189_5097",
+        0
+      ],
+      "guider": [
+        "5189_5098",
+        0
+      ],
+      "sampler": [
+        "5189_5099",
+        0
+      ],
+      "sigmas": [
+        "5189_5233",
+        0
+      ],
+      "latent_image": [
+        "5189_5112",
+        0
+      ]
+    }
+  },
+  "5189_5097": {
+    "class_type": "RandomNoise",
+    "inputs": {
+      "noise_seed": "PARAM_INT_SEED"
+    }
+  },
+  "5189_5099": {
+    "class_type": "KSamplerSelect",
+    "inputs": {}
+  },
+  "5189_5098": {
+    "class_type": "CFGGuider",
+    "inputs": {
+      "model": [
+        "5183",
+        0
+      ],
+      "positive": [
+        "5189_5239",
+        0
+      ],
+      "negative": [
+        "5173",
+        1
+      ],
+      "cfg": 1
+    }
+  },
+  "5189_5233": {
+    "class_type": "ManualSigmas",
+    "inputs": {
+      "sigmas": "0.909375, 0.725, 0.421875, 0.0"
+    }
+  },
+  "5189_5109": {
+    "class_type": "KSamplerSelect",
+    "inputs": {}
+  },
+  "5189_5110": {
+    "class_type": "CFGGuider",
+    "inputs": {
+      "model": [
+        "5182",
+        0
+      ],
+      "positive": [
+        "5189_5239",
+        0
+      ],
+      "negative": [
+        "5173",
+        1
+      ],
+      "cfg": 1
+    }
+  },
+  "5189_5152": {
+    "class_type": "LTXVEmptyLatentAudio",
+    "inputs": {
+      "frames_number": [
+        "5186",
+        0
+      ],
+      "frame_rate": [
+        "5196",
+        0
+      ],
+      "batch_size": 1,
+      "audio_vae": [
+        "5188",
+        0
+      ]
+    }
+  },
+  "5189_5069": {
+    "class_type": "GetImageSize",
+    "inputs": {
+      "image": [
+        "5189_5075",
+        0
+      ]
+    }
+  },
+  "5189_5104": {
+    "class_type": "LTXVSeparateAVLatent",
+    "inputs": {
+      "av_latent": [
+        "5189_5100",
+        1
+      ]
+    }
+  },
+  "5189_5103": {
+    "class_type": "LTXVAudioVAEDecode",
+    "inputs": {
+      "samples": [
+        "5189_5104",
+        1
+      ],
+      "audio_vae": [
+        "5188",
+        0
+      ]
+    }
+  },
+  "5189_5245": {
+    "class_type": "LTXVSpatioTemporalTiledVAEDecode",
+    "inputs": {
+      "vae": [
+        "5176",
+        2
+      ],
+      "latents": [
+        "5189_5104",
+        0
+      ],
+      "spatial_tiles": 4,
+      "spatial_overlap": 4,
+      "temporal_tile_length": 16,
+      "temporal_overlap": 4,
+      "last_frame_fix": false,
+      "working_device": "auto",
+      "working_dtype": "auto"
+    }
+  },
+  "5189_5138": {
+    "class_type": "EmptyLTXVLatentVideo",
+    "inputs": {
+      "width": [
+        "5189_5069",
+        0
+      ],
+      "height": [
+        "5189_5069",
+        1
+      ],
+      "length": [
+        "5186",
+        0
+      ],
+      "batch_size": 1
+    }
+  },
+  "5189_5244": {
+    "class_type": "ResizeImagesByLongerEdge",
+    "inputs": {
+      "images": [
+        "5189_5239",
+        1
+      ],
+      "longer_edge": 1536
+    }
+  },
+  "5189_5240": {
+    "class_type": "LTXVPreprocess",
+    "inputs": {
+      "image": [
+        "5189_5244",
+        0
+      ],
+      "img_compression": 33
+    }
+  },
+  "5189_5075": {
+    "class_type": "ImageScaleBy",
+    "inputs": {
+      "image": [
+        "5185",
+        0
+      ],
+      "upscale_method": "bicubic",
+      "scale_by": 0.5
+    }
+  },
+  "5189_5112": {
+    "class_type": "LTXVConcatAVLatent",
+    "inputs": {
+      "video_latent": [
+        "5189_5251",
+        0
+      ],
+      "audio_latent": [
+        "5189_5114",
+        1
+      ]
+    }
+  },
+  "5189_5251": {
+    "class_type": "LTXVImgToVideoInplace",
+    "inputs": {
+      "vae": [
+        "5176",
+        2
+      ],
+      "image": [
+        "5189_5244",
+        0
+      ],
+      "latent": [
+        "5189_5255",
+        0
+      ],
+      "strength": 1,
+      "bypass": false
+    }
+  },
+  "5189_5255": {
+    "class_type": "LTXVLatentUpsampler",
+    "inputs": {
+      "samples": [
+        "5189_5114",
+        0
+      ],
+      "upscale_model": [
+        "5210",
+        0
+      ],
+      "vae": [
+        "5176",
+        2
+      ]
+    }
+  },
+  "5189_5254": {
+    "class_type": "LTXVImgToVideoInplace",
+    "inputs": {
+      "vae": [
+        "5176",
+        2
+      ],
+      "image": [
+        "5189_5240",
+        0
+      ],
+      "latent": [
+        "5189_5138",
+        0
+      ],
+      "strength": 0.6,
+      "bypass": false
+    }
+  },
+  "5189_5239": {
+    "class_type": "ImpactExecutionOrderController",
+    "inputs": {
+      "signal": [
+        "5173",
+        0
+      ],
+      "value": [
+        "5180",
+        0
+      ]
+    }
+  },
+  "5189_5111": {
+    "class_type": "RandomNoise",
+    "inputs": {
+      "noise_seed": "PARAM_INT_SEED"
+    }
+  },
+  "_meta": {
+    "description": "\u26a0 OOM on 24GB VRAM \u00b7 LTX-2 image-to-video with camera motion control + Gemma 12B enhancer. Requires ~40GB VRAM. Not usable on RTX 3090/4090. Params: prompt, image."
+  }
+}
