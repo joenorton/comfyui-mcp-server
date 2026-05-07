@@ -2,6 +2,7 @@ import requests
 import json
 import time
 import logging
+from pathlib import Path
 from typing import Any, Dict, Optional, Sequence
 from urllib.parse import quote
 
@@ -13,47 +14,81 @@ logger = logging.getLogger("ComfyUIClient")
 class ComfyUIClient:
     def __init__(self, base_url):
         self.base_url = base_url
-        self.available_models = self._get_available_models()
+        self.available_models_categorized = self._get_available_models_categorized()
+        self.available_models = self.available_models_categorized.get("checkpoints", [])
     
     def refresh_models(self):
         """Re-fetch available models and update available_models list."""
-        self.available_models = self._get_available_models()
-
-    def _get_available_models(self):
-        """Fetch list of available checkpoint models from ComfyUI"""
+        self.available_models_categorized = self._get_available_models_categorized()
+        self.available_models = self.available_models_categorized.get("checkpoints", [])
+    
+    def _get_available_models_categorized(self):
+        """Fetch categorized list of all model types from ComfyUI"""
+        all_models = {
+            "checkpoints": [],
+            "unet": [],
+            "diffusion_models": []
+        }
+        
+        # Fetch checkpoint models
         try:
             response = requests.get(f"{self.base_url}/object_info/CheckpointLoaderSimple", timeout=10)
-            if response.status_code != 200:
-                logger.warning("Failed to fetch model list; using default handling")
-                return []
-            data = response.json()
-            # Safe dictionary access with proper error handling
-            try:
+            if response.status_code == 200:
+                data = response.json()
                 checkpoint_info = data.get("CheckpointLoaderSimple", {})
-                if not isinstance(checkpoint_info, dict):
-                    logger.warning("Unexpected CheckpointLoaderSimple structure")
-                    return []
-                input_info = checkpoint_info.get("input", {})
-                if not isinstance(input_info, dict):
-                    logger.warning("Unexpected input structure")
-                    return []
-                required_info = input_info.get("required", {})
-                if not isinstance(required_info, dict):
-                    logger.warning("Unexpected required structure")
-                    return []
-                ckpt_name_info = required_info.get("ckpt_name", [])
-                if not isinstance(ckpt_name_info, list) or len(ckpt_name_info) == 0:
-                    logger.warning("No checkpoint models found in API response")
-                    return []
-                models = ckpt_name_info[0] if isinstance(ckpt_name_info[0], list) else ckpt_name_info
-                logger.info(f"Available models: {models}")
-                return models
-            except (KeyError, IndexError, TypeError) as e:
-                logger.warning(f"Unexpected API response structure: {e}")
-                return []
-        except requests.RequestException as e:
-            logger.warning(f"Error fetching models: {e}")
-            return []
+                if isinstance(checkpoint_info, dict):
+                    input_info = checkpoint_info.get("input", {})
+                    if isinstance(input_info, dict):
+                        required_info = input_info.get("required", {})
+                        if isinstance(required_info, dict):
+                            ckpt_name_info = required_info.get("ckpt_name", [])
+                            if isinstance(ckpt_name_info, list) and len(ckpt_name_info) > 0:
+                                models = ckpt_name_info[0] if isinstance(ckpt_name_info[0], list) else ckpt_name_info
+                                all_models["checkpoints"] = models
+                                logger.info(f"Available checkpoint models: {len(models)}")
+        except Exception as e:
+            logger.warning(f"Error fetching checkpoint models: {e}")
+        
+        # Fetch UNet models
+        try:
+            response = requests.get(f"{self.base_url}/object_info/UNETLoader", timeout=10)
+            if response.status_code == 200:
+                data = response.json()
+                unet_info = data.get("UNETLoader", {})
+                if isinstance(unet_info, dict):
+                    input_info = unet_info.get("input", {})
+                    if isinstance(input_info, dict):
+                        required_info = input_info.get("required", {})
+                        if isinstance(required_info, dict):
+                            unet_name_info = required_info.get("unet_name", [])
+                            if isinstance(unet_name_info, list) and len(unet_name_info) > 0:
+                                models = unet_name_info[0] if isinstance(unet_name_info[0], list) else unet_name_info
+                                all_models["unet"] = models
+                                logger.info(f"Available UNet models: {len(models)}")
+        except Exception as e:
+            logger.warning(f"Error fetching UNet models: {e}")
+        
+        # Fetch diffusion_models (try DiffusionModelLoader)
+        try:
+            response = requests.get(f"{self.base_url}/object_info/DiffusionModelLoader", timeout=10)
+            if response.status_code == 200:
+                data = response.json()
+                diffusion_info = data.get("DiffusionModelLoader", {})
+                if isinstance(diffusion_info, dict):
+                    input_info = diffusion_info.get("input", {})
+                    if isinstance(input_info, dict):
+                        required_info = input_info.get("required", {})
+                        if isinstance(required_info, dict):
+                            model_name_info = required_info.get("model_path", [])
+                            if isinstance(model_name_info, list) and len(model_name_info) > 0:
+                                models = model_name_info[0] if isinstance(model_name_info[0], list) else model_name_info
+                                all_models["diffusion_models"] = models
+                                logger.info(f"Available diffusion models: {len(models)}")
+        except Exception as e:
+            logger.warning(f"Error fetching diffusion models: {e}")
+        
+        logger.info(f"Total models found: {sum(len(v) for v in all_models.values())}")
+        return all_models
 
     def run_custom_workflow(self, workflow: Dict[str, Any], preferred_output_keys: Sequence[str] | None = None, max_attempts: int = 30):
         if preferred_output_keys is None:

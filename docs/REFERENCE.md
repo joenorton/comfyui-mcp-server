@@ -516,7 +516,7 @@ Same schema as generation tools (new asset with new `asset_id`)
 
 ### list_models
 
-List all available checkpoint models in ComfyUI.
+List all available models in ComfyUI, organized by model type.
 
 **Signature:**
 ```python
@@ -526,27 +526,52 @@ list_models() -> dict
 **Returns:**
 ```json
 {
-  "models": [
-    "v1-5-pruned-emaonly.ckpt",
-    "sd_xl_base_1.0.safetensors",
-    ...
-  ],
-  "count": 7,
-  "default": "v1-5-pruned-emaonly.ckpt"
+  "models": {
+    "checkpoints": [
+      "v1-5-pruned-emaonly.ckpt",
+      "sd_xl_base_1.0.safetensors"
+    ],
+    "unet": [
+      "flux_dev.safetensors",
+      "sd3_medium.safetensors",
+      "z_image_turbo_bf16.safetensors"
+    ],
+    "diffusion_models": []
+  },
+  "counts": {
+    "checkpoints": 2,
+    "unet": 3,
+    "diffusion_models": 0,
+    "total": 5
+  },
+  "default_checkpoint": "v1-5-pruned-emaonly.ckpt"
 }
 ```
+
+**Model Categories:**
+- **checkpoints**: Traditional checkpoint models (SDXL, SD 1.5, etc.) - used with `CheckpointLoaderSimple`
+- **unet**: UNet/transformer models (Flux, SD3, z_image, etc.) - used with `UNETLoader`
+- **diffusion_models**: Diffusion transformer models - used with `DiffusionModelLoader`
+
+**Note:** Modern models like Flux, SD3, z_image, and Wanxiang are typically found in the `unet` category. These models require additional components (CLIP encoders, VAE) to be specified separately in workflows.
 
 **Examples:**
 
 **User:** "What models are available in ComfyUI?"
 
-**Agent:** *Calls `list_models()` → reports available checkpoint models*
+**Agent:** *Calls `list_models()` → reports all available models organized by type*
 
 ---
 
 **User:** "I want to use a different model - show me what's available"
 
-**Agent:** *Calls `list_models()` → lists models, user selects one, agent uses it in generation*
+**Agent:** *Calls `list_models()` → lists models by category, user selects one*
+
+---
+
+**User:** "Can I use Flux or z_image models?"
+
+**Agent:** *Calls `list_models()` → checks `unet` category for modern models*
 
 ### get_defaults
 

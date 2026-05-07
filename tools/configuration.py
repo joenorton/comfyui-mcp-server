@@ -14,16 +14,36 @@ def register_configuration_tools(
     
     @mcp.tool()
     def list_models() -> dict:
-        """List all available checkpoint models in ComfyUI.
+        """List all available models in ComfyUI (checkpoints, unet, diffusion_models).
         
-        Returns a list of model names that can be used with generation tools.
+        Returns a categorized list of model names that can be used with generation tools.
         This helps AI agents choose appropriate models for different use cases.
+        
+        Categories:
+        - checkpoints: Traditional checkpoint models (SDXL, SD 1.5, etc.) - used by CheckpointLoaderSimple
+        - unet: UNet models (Flux, SD3, etc.) - used by UNETLoader
+        - diffusion_models: Diffusion transformer models (z_image, LTX, Wanxiang, etc.) - used by DiffusionModelLoader
         """
-        models = comfyui_client.available_models
+        categorized = comfyui_client.available_models_categorized
+        checkpoints = categorized.get("checkpoints", [])
+        unet = categorized.get("unet", [])
+        diffusion = categorized.get("diffusion_models", [])
+        
+        total_count = len(checkpoints) + len(unet) + len(diffusion)
+        
         return {
-            "models": models,
-            "count": len(models),
-            "default": "v1-5-pruned-emaonly.ckpt" if models else None
+            "models": {
+                "checkpoints": checkpoints,
+                "unet": unet,
+                "diffusion_models": diffusion
+            },
+            "counts": {
+                "checkpoints": len(checkpoints),
+                "unet": len(unet),
+                "diffusion_models": len(diffusion),
+                "total": total_count
+            },
+            "default_checkpoint": "v1-5-pruned-emaonly.ckpt" if checkpoints else None
         }
 
     @mcp.tool()

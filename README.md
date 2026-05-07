@@ -174,7 +174,7 @@ No migration is required unless you want the new capabilities.
 
 ### Configuration Tools
 
-- **`list_models`**: List available ComfyUI models
+- **`list_models`**: List available ComfyUI models (supports checkpoints, UNet, and diffusion models)
 - **`get_defaults`**: Get current default values
 - **`set_defaults`**: Set default values (with optional persistence)
 
@@ -222,6 +222,12 @@ See [docs/HOW_TO_TEST_PUBLISH.md](docs/HOW_TO_TEST_PUBLISH.md) for detailed usag
 ## Custom Workflows
 
 Add custom workflows by placing JSON files in the `workflows/` directory. Workflows are automatically discovered and exposed as MCP tools.
+
+### Included Workflows
+
+- **`generate_image.json`**: Standard checkpoint-based image generation (SD 1.5, SDXL, etc.)
+- **`generate_image_unet.json`**: UNet-based image generation (Flux, SD3, z_image, etc.) with separate CLIP and VAE loading
+- **`generate_song.json`**: Audio generation workflow
 
 ### Workflow Placeholders
 

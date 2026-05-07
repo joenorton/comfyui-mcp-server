@@ -28,6 +28,9 @@ pytest tests/test_asset_registry.py -v
 # Job tools tests
 pytest tests/test_job_tools.py -v
 
+# Model categorization tests
+pytest tests/test_model_categorization.py -v
+
 # Edge case tests
 pytest tests/test_edge_cases.py -v
 ```
@@ -44,6 +47,7 @@ pytest tests/ --cov=. --cov-report=html
 - `test_basic.py` - Basic smoke tests for critical paths
 - `test_asset_registry.py` - Unit tests for AssetRegistry
 - `test_job_tools.py` - Tests for job management tools
+- `test_model_categorization.py` - Tests for categorized model detection
 - `test_edge_cases.py` - Edge case and boundary condition tests
 
 ## Test Categories
