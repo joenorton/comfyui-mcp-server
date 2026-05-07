@@ -1,0 +1,9 @@
+{
+	"servers": {
+		"comfyui-mcp-server": {
+			"url": "http://127.0.0.1:9000/mcp",
+			"type": "http"
+		}
+	},
+	"inputs": []
+}
