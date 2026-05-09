@@ -1,3 +1,8 @@
+> **🍴 Fork notice** — this is a downstream fork of [joenorton/comfyui-mcp-server](https://github.com/joenorton/comfyui-mcp-server). Default branch [`feat/improvements`](https://github.com/svilendotorg/ComfyUI-MCP-Server/tree/feat/improvements) homelab integration trunk: multi-backend pool with VRAM-aware routing, 42-workflow library, async-completion asset registration, optional `topic` slug + auto-derive, `markdown_preview`, mesh output keys, `upload_file` MCP tool, plus many smaller fixes.
+> See [**IMPROVEMENTS.md**](IMPROVEMENTS.md) for the full list of downstream changes and rationale.
+
+---
+
 # ComfyUI MCP Server
 
 > Generate and refine AI images/audio/video through natural conversation

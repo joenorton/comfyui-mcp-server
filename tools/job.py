@@ -1,12 +1,38 @@
 """Job and queue management tools for ComfyUI MCP Server"""
 
 import logging
+import re
 from typing import Any, Dict, List, Optional
 
 from mcp.server.fastmcp import FastMCP
 
 logger = logging.getLogger("MCP_Server")
 
+
+
+def _extract_workflow_id_from_prompt_data(prompt_data: dict) -> str:
+    """Best-effort extract of workflow_id from a ComfyUI history entry.
+
+    Looks at filename_prefix on Save* nodes in the prompt graph and pulls the
+    workflow stem out of the conventional `<subfolder>/<date>-<workflow_id>` form.
+    Falls back to an empty string when nothing matches — the caller should
+    coalesce to a sensible default.
+    """
+    arr = prompt_data.get("prompt") or []
+    if len(arr) < 3 or not isinstance(arr[2], dict):
+        return ""
+    for node in arr[2].values():
+        if not isinstance(node, dict):
+            continue
+        fp = node.get("inputs", {}).get("filename_prefix")
+        if not isinstance(fp, str):
+            continue
+        tail = fp.rsplit("/", 1)[-1]
+        tail = re.sub(r"^%date:[^%]+%-", "", tail)
+        tail = re.sub(r"^\d{4}-\d{2}-\d{2}-", "", tail)
+        if tail:
+            return tail
+    return ""
 
 def register_job_tools(
     mcp: FastMCP,
@@ -125,12 +151,50 @@ def register_job_tools(
                     
                     # Check if completed with outputs
                     if "outputs" in prompt_data and prompt_data["outputs"]:
+                        # Auto-register every output asset so list_assets / view_image
+                        # find them after async polling. Dedup-safe in the registry.
+                        wf_id = _extract_workflow_id_from_prompt_data(prompt_data) or "unknown"
+                        registered = []
+                        for _node_id, _node_out in prompt_data["outputs"].items():
+                            if not isinstance(_node_out, dict):
+                                continue
+                            for _kind in ("images", "audios", "gifs", "videos"):
+                                for _item in _node_out.get(_kind, []) or []:
+                                    if not isinstance(_item, dict) or not _item.get("filename"):
+                                        continue
+                                    try:
+                                        rec = asset_registry.register_asset(
+                                            filename=_item.get("filename", ""),
+                                            subfolder=_item.get("subfolder", ""),
+                                            folder_type=_item.get("type", "output"),
+                                            workflow_id=wf_id,
+                                            prompt_id=prompt_id,
+                                            comfy_history=prompt_data,
+                                        )
+                                        _backend_url = history.get("_pool_backend_url") if isinstance(history, dict) else None
+                                        if _backend_url:
+                                            rec.set_base_url(_backend_url)
+                                        _asset_url = rec.asset_url or rec.get_asset_url(asset_registry.comfyui_base_url)
+                                        from tools.helpers import _format_markdown_preview
+                                        registered.append({
+                                            "asset_id": rec.asset_id,
+                                            "filename": rec.filename,
+                                            "subfolder": rec.subfolder,
+                                            "asset_url": _asset_url,
+                                            "markdown_preview": _format_markdown_preview(_asset_url, rec.mime_type, rec.filename),
+                                        })
+                                    except Exception as _reg_err:
+                                        logger.warning(
+                                            f"get_job: failed to register asset "
+                                            f"{_item.get('filename')}: {_reg_err}"
+                                        )
                         return {
                             "status": "completed",
                             "prompt_id": prompt_id,
                             "outputs": prompt_data["outputs"],
+                            "registered_assets": registered,
                             "history": prompt_data,
-                            "message": "Job completed successfully"
+                            "message": "Job completed successfully",
                         }
                     else:
                         # History exists but no outputs yet (might be in transition)

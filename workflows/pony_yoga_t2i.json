@@ -1,0 +1,121 @@
+{
+  "1": {
+    "class_type": "CheckpointLoaderSimple",
+    "inputs": {
+      "ckpt_name": "ponyDiffusionV6XL_v6StartWithThisOne.safetensors"
+    }
+  },
+  "8": {
+    "class_type": "LoraLoader",
+    "inputs": {
+      "model": [
+        "1",
+        0
+      ],
+      "clip": [
+        "1",
+        1
+      ],
+      "lora_name": "serene_yoga_stud10-p.safetensors",
+      "strength_model": 0.8,
+      "strength_clip": 0.8
+    }
+  },
+  "9": {
+    "class_type": "LoraLoader",
+    "inputs": {
+      "model": [
+        "8",
+        0
+      ],
+      "clip": [
+        "8",
+        1
+      ],
+      "lora_name": "YogaTreePony-000020.safetensors",
+      "strength_model": 0.8,
+      "strength_clip": 0.8
+    }
+  },
+  "2": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "PARAM_PROMPT",
+      "clip": [
+        "9",
+        1
+      ]
+    }
+  },
+  "3": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "text": "PARAM_NEGATIVE_PROMPT",
+      "clip": [
+        "9",
+        1
+      ]
+    }
+  },
+  "4": {
+    "class_type": "EmptyLatentImage",
+    "inputs": {
+      "width": 832,
+      "height": 1216,
+      "batch_size": 1
+    }
+  },
+  "5": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": [
+        "9",
+        0
+      ],
+      "positive": [
+        "2",
+        0
+      ],
+      "negative": [
+        "3",
+        0
+      ],
+      "latent_image": [
+        "4",
+        0
+      ],
+      "seed": "PARAM_INT_SEED",
+      "steps": 30,
+      "cfg": 7.0,
+      "sampler_name": "dpmpp_2m",
+      "scheduler": "karras",
+      "denoise": 1.0
+    }
+  },
+  "6": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "5",
+        0
+      ],
+      "vae": [
+        "1",
+        2
+      ]
+    }
+  },
+  "7": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "images": [
+        "6",
+        0
+      ],
+      "filename_prefix": "images/%date:yyyy-MM-dd%-pony_yoga_t2i"
+    }
+  },
+  "_meta": {
+    "description": "~30-60s \u00b7 832\u00d71216 \u00b7 Pony Diffusion V6 XL + serene-yoga-studio LoRA (0.8) + YogaTreePony pose LoRA (0.8). DPM++ 2M Karras, CFG 7, 30 steps. Always prefix prompts with: score_9, score_8_up, score_7_up, serene yoga stud10, doyotr, doing yoga tree, 1girl, ... Default negative: score_4, score_5, score_6, source_pony, source_furry, worst quality, low quality, anatomy_bad, deformed, bad anatomy. Params: prompt, negative_prompt."
+  }
+}

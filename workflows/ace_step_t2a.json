@@ -1,7 +1,7 @@
 {
   "59": {
     "inputs": {
-      "filename_prefix": "audio/ComfyUI",
+      "filename_prefix": "audio/%date:yyyy-MM-dd%-ace_step_t2a",
       "quality": "V0",
       "audioUI": "",
       "audio": [
@@ -143,5 +143,8 @@
     "_meta": {
       "title": "TextEncodeAceStepAudio"
     }
+  },
+  "_meta": {
+    "description": "~1-2 min \u00b7 60s stereo MP3 \u00b7 ACE-Step v1 music generation from genre tags + lyrics; supports full song structure. Params: tags (genre/instrument/mood), lyrics."
   }
 }

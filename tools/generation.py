@@ -7,7 +7,7 @@ import random
 from typing import Any, Dict, Optional
 
 from mcp.server.fastmcp import FastMCP
-from managers.workflow_manager import AUDIO_OUTPUT_KEYS, VIDEO_OUTPUT_KEYS
+from managers.workflow_manager import AUDIO_OUTPUT_KEYS, VIDEO_OUTPUT_KEYS, MESH_OUTPUT_KEYS
 from models.workflow import WorkflowToolDefinition
 from tools.helpers import register_and_build_response
 
@@ -25,8 +25,10 @@ def register_workflow_generation_tools(
     
     def _register_workflow_tool(definition: WorkflowToolDefinition):
         def _tool_impl(*args, **kwargs):
-            # Extract return_inline_preview if present (not a workflow parameter)
+            # Extract return_inline_preview and backend — not workflow parameters
             return_inline_preview = kwargs.pop("return_inline_preview", False)
+            backend = kwargs.pop("backend", None)
+            topic = kwargs.pop("topic", None)
             # Session tracking can be added via request context in the future
             session_id = None
             
@@ -68,8 +70,20 @@ def register_workflow_generation_tools(
                     # Unknown parameter, pass through
                     coerced_kwargs[key] = value
             
+            # Resolve asset_id / bare filenames in image/audio params to URLs
+            try:
+                from tools.helpers import resolve_asset_reference as _rar
+                for _ref_key in ("image", "image_last", "audio"):
+                    if _ref_key in coerced_kwargs:
+                        coerced_kwargs[_ref_key] = _rar(coerced_kwargs[_ref_key], asset_registry)
+            except Exception as _ref_err:
+                logger.warning(f"asset_reference resolve failed: {_ref_err}")
+
             bound = _tool_impl.__signature__.bind(*args, **coerced_kwargs)
             bound.apply_defaults()
+            # Re-attach topic so apply_workflow_overrides sees it
+            if topic:
+                bound.arguments["topic"] = topic
             
             # Determine namespace using workflow manager (content-aware)
             namespace = workflow_manager._determine_namespace(definition.workflow_id)
@@ -104,6 +118,7 @@ def register_workflow_generation_tools(
                 workflow = workflow_manager.render_workflow(definition, dict(bound.arguments), defaults_manager)
                 result = comfyui_client.run_custom_workflow(
                     workflow,
+                    backend=backend,
                     preferred_output_keys=definition.output_preferences,
                 )
                 
@@ -190,6 +205,23 @@ def register_workflow_generation_tools(
             default=False,
         ))
         annotations["return_inline_preview"] = bool
+        # Backend selection
+        optional_params.append(inspect.Parameter(
+            name="backend",
+            kind=inspect.Parameter.POSITIONAL_OR_KEYWORD,
+            annotation=Optional[str],
+            default=None,
+        ))
+        annotations["backend"] = Optional[str]
+        # Topic slug — drives output filename for searchability.
+        # Convention: 1-2 words, e.g. "giraffe", "forest_scene".
+        optional_params.append(inspect.Parameter(
+            name="topic",
+            kind=inspect.Parameter.POSITIONAL_OR_KEYWORD,
+            annotation=Optional[str],
+            default=None,
+        ))
+        annotations["topic"] = Optional[str]
         
         # Combine: required parameters first, then optional
         parameters = required_params + optional_params
